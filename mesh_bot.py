@@ -1862,6 +1862,36 @@ def handle_boot(mesh=True):
     except Exception as e:
         logger.error(f"System: Error during boot: {e}")
 
+def _meshforge_reply_is_dup(original_text, command, channel, from_id):
+    # MeshForge: dual-bridge reply guard. The same MeshCore command reaches
+    # the bot via two bridge paths ([MC:..] and [ch0:..]) seconds apart;
+    # BOTH are kept (each ~33% delivery, together ~55% — load-bearing
+    # redundancy on the lossy segment, measured 2026-05-26), but the bot
+    # must REPLY only once. Returns True if (origin, command, channel) was
+    # already answered within MESHFORGE_REPLY_DEDUP_S seconds (default 30;
+    # <=0 disables). origin is parsed from the [MC:who]/[chN:who] tag so two
+    # senders' identical commands are never collapsed.
+    import os as _os, re as _re, time as _time
+    try:
+        window = int(_os.environ.get('MESHFORGE_REPLY_DEDUP_S', '30'))
+    except (TypeError, ValueError):
+        window = 30
+    if window <= 0 or not command:
+        return False
+    m = _re.search(r'\[(?:MC|ch\d+):([^\]]+)\]', original_text or '')
+    origin = m.group(1).strip() if m else str(from_id)
+    key = (origin, ' '.join(str(command).split()).lower(), channel)
+    now = _time.time()
+    cache = _meshforge_reply_is_dup.__dict__.setdefault('_seen', {})
+    for stale in [k for k, t in cache.items() if now - t > window]:
+        cache.pop(stale, None)
+    if key in cache and now - cache[key] <= window:
+        cache[key] = now
+        return True
+    cache[key] = now
+    return False
+
+
 def onReceive(packet, interface):
     global seenNodes, msg_history, cmdHistory
     # Priocess the incoming packet, handles the responses to the packet with auto_response()
@@ -1874,6 +1904,28 @@ def onReceive(packet, interface):
     decoded = packet.get('decoded')
     if not isinstance(decoded, dict):
         decoded = {}
+
+    # MeshForge 2026-06-19: surface delivery ACK/NAK for our own replies. The
+    # bot sends with wantAck=True but never logged the result — ROUTING_APP
+    # (the firmware's ack/nak) was ignored here, so undelivered replies were
+    # invisible ("Sending" was logged, delivery was not). Log the outcome only;
+    # do NOT early-return — existing packet flow is unchanged (these packets
+    # already fell through to no handler). errorReason 'NONE'/empty == delivered.
+    if decoded.get('portnum') == 'ROUTING_APP':
+        try:
+            _routing = decoded.get('routing')
+            _err = (_routing.get('errorReason', 'NONE')
+                    if isinstance(_routing, dict) else (_routing or 'NONE'))
+            _rid = (decoded.get('requestId') or decoded.get('request_id')
+                    or packet.get('id'))
+            _frm = packet.get('fromId') or packet.get('from')
+            if _err in ('NONE', None, 0, '0', ''):
+                logger.info(f"Delivery ACK: reply delivered (from {_frm} reqId {_rid})")
+            else:
+                logger.warning(f"Delivery FAILED: reply NOT delivered "
+                               f"(from {_frm} reqId {_rid} reason {_err})")
+        except Exception as _e:
+            logger.warning(f"Delivery ACK/NAK log error: {_e}")
 
     # extract interface details from inbound packet
     rxType = type(interface).__name__
@@ -2010,6 +2062,16 @@ def onReceive(packet, interface):
                 logger.warning(f"System: Ignoring TEXT_MESSAGE_APP with invalid payload type: {type(message_bytes).__name__}")
                 return
             message_log_string = message_string.replace('\r', ' ').replace('\n', ' ')
+            # MeshForge: strip leading bridge routing tags (e.g. [RNS:xxxx], [Mesh:xxxx], [ch0:?])
+            # so bridged commands like "[RNS:3dfb] wx" parse as commands. Log keeps the original tag.
+            if isinstance(message_string, str):
+                _mf_ms = message_string.lstrip()
+                while _mf_ms.startswith('['):
+                    _mf_close = _mf_ms.find(']')
+                    if _mf_close == -1:
+                        break
+                    _mf_ms = _mf_ms[_mf_close + 1:].lstrip()
+                message_string = _mf_ms
             via_mqtt = decoded.get('viaMqtt', False)
             transport_mechanism = (
                 packet.get('transport_mechanism')
@@ -2105,6 +2167,9 @@ def onReceive(packet, interface):
             if packet.get('to') in [myNodeNum1, myNodeNum2, myNodeNum3, myNodeNum4, myNodeNum5, myNodeNum6, myNodeNum7, myNodeNum8, myNodeNum9]:
                 # message is DM to us
                 isDM = True
+                if my_settings.ignoreDMs:
+                    logger.debug(f"System: Ignoring DM from {get_name_from_number(message_from_id, 'short', rxNode)} (ignoreDMs enabled)")
+                    return
                 # check if the message contains a trap word, DMs are always responded to
                 if (messageTrap(message_string) and not llm_enabled) or messageTrap(message_string.split()[0]):
                     # log the message to stdout
@@ -2175,6 +2240,13 @@ def onReceive(packet, interface):
                         # message is for bot to respond to, seriously this time..
                         logger.info(f"Device:{rxNode} Channel:{channel_number} " + CustomFormatter.green + "ReceivedChannel: " + CustomFormatter.white + f"{message_log_string} " + CustomFormatter.purple +\
                                     "From: " + CustomFormatter.white + f"{get_name_from_number(message_from_id, 'long', rxNode)}")
+                        # MeshForge: reply-dedup for dual-bridged commands —
+                        # receipt is logged above (so the dual-inject watch
+                        # still sees both copies); suppress only the second
+                        # REPLY. See _meshforge_reply_is_dup.
+                        if _meshforge_reply_is_dup(message_log_string, message_string, channel_number, message_from_id):
+                            logger.info(f"Device:{rxNode} Channel:{channel_number} MeshForge: dropped duplicate reply (dual-bridged), kept receipt above")
+                            return
                         if my_settings.useDMForResponse:
                             # respond to channel message via direct message
                             send_message(auto_response(message_string, snr, rssi, hop, pkiStatus, message_from_id, channel_number, rxNode, isDM), channel_number, message_from_id, rxNode, reply_id=packet_id)

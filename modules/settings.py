@@ -16,7 +16,7 @@ msg_history = [] # message history for the store and forward feature
 bbs_ban_list = [] # list of banned users, imported from config
 bbs_admin_list = [] # list of admin users, imported from config
 repeater_channels = [] # list of channels to listen on for repeater mode, imported from config
-antiSpam = True # anti-spam feature to prevent flooding public channel
+antiSpam = True # anti-spam feature to prevent flooding public channel, can be overridden in config.ini
 ping_enabled = True # ping feature to respond to pings, ack's etc.
 sitrep_enabled = True # sitrep feature to respond to sitreps
 lastHamLibAlert = 0 # last alert from hamlib
@@ -238,6 +238,8 @@ try:
     publicChannel = config['general'].getint('defaultChannel', 0) # the meshtastic public channel
     ignoreChannels = config['general'].get('ignoreChannels', '').split(',') # ignore these channels
     ignoreDefaultChannel = config['general'].getboolean('ignoreDefaultChannel', False)
+    antiSpam = config['general'].getboolean('antiSpam', True) # override default antiSpam
+    ignoreDMs = config['general'].getboolean('ignoreDMs', False) # ignore direct messages
     cmdBang = config['general'].getboolean('cmdBang', False) # default off
     explicitCmd = config['general'].getboolean('explicitCmd', True) # default on
     zuluTime = config['general'].getboolean('zuluTime', False) # aka 24 hour time

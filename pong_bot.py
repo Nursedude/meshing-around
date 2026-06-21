@@ -427,6 +427,9 @@ def onReceive(packet, interface):
             if packet['to'] in [myNodeNum1, myNodeNum2, myNodeNum3, myNodeNum4, myNodeNum5, myNodeNum6, myNodeNum7, myNodeNum8, myNodeNum9]:
                 # message is DM to us
                 isDM = True
+                if my_settings.ignoreDMs:
+                    logger.debug(f"System: Ignoring DM from {get_name_from_number(message_from_id, 'short', rxNode)} (ignoreDMs enabled)")
+                    return
                 # check if the message contains a trap word, DMs are always responded to
                 if (messageTrap(message_string) and not llm_enabled) or messageTrap(message_string.split()[0]):
                     # log the message to stdout
