@@ -69,8 +69,9 @@ def get_wxUKgov():
         
         return "\n".join(alerts) if alerts else NO_ALERTS
     except Exception as e:
-        logger.warning("Error getting UK weather warnings: " + str(e))
-        return NO_ALERTS
+        # a fetch failure must never read as the all-clear NO_ALERTS
+        logger.warning(f"Error getting UK weather warnings: {type(e).__name__}: {e}")
+        return ERROR_FETCHING_DATA
     
     
 def get_floodUKgov():
@@ -89,7 +90,8 @@ def get_crimeUKgov(lat, lon):
     try:
         response = requests.get(url, timeout=urlTimeoutSeconds)
         if not response.ok or not response.text.strip():
-            return NO_ALERTS
+            logger.warning(f"Error fetching UK crime data (HTTP {response.status_code})")
+            return ERROR_FETCHING_DATA
         crimes = response.json()
         if not crimes:
             return NO_ALERTS
@@ -102,8 +104,8 @@ def get_crimeUKgov(lat, lon):
             summaries.append(f"{category.title()} at {location} ({outcome})")
         return "\n".join(summaries)
     except Exception as e:
-        logger.warning(f"Error fetching UK crime data: {e}")
-        return NO_ALERTS
+        logger.warning(f"Error fetching UK crime data: {type(e).__name__}: {e}")
+        return ERROR_FETCHING_DATA
 
 def get_crime_stopsUKgov(lat, lon):
     """
@@ -115,7 +117,8 @@ def get_crime_stopsUKgov(lat, lon):
     try:
         response = requests.get(url, timeout=urlTimeoutSeconds)
         if not response.ok or not response.text.strip():
-            return NO_ALERTS
+            logger.warning(f"Error fetching UK stop-and-search data (HTTP {response.status_code})")
+            return ERROR_FETCHING_DATA
         stops = response.json()
         if not stops:
             return NO_ALERTS
@@ -132,4 +135,5 @@ def get_crime_stopsUKgov(lat, lon):
             summaries.append(summary)
         return "\n".join(summaries)
     except Exception as e:
-        return NO_ALERTS
+        logger.warning(f"Error fetching UK stop-and-search data: {type(e).__name__}: {e}")
+        return ERROR_FETCHING_DATA

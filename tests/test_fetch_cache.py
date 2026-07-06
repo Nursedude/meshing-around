@@ -75,6 +75,22 @@ def test_error_sentinels_are_never_cached():
     assert len(calls) == 5
 
 
+def test_no_alerts_is_never_cached():
+    """A cached all-clear must never be served after a real warning lands —
+    every safety query reflects live upstream state."""
+    results = iter([my_settings.NO_ALERTS, "Tornado Warning"])
+    calls = []
+
+    @ttl_cache(ttl_seconds=60)
+    def fetch():
+        calls.append(1)
+        return next(results)
+
+    assert fetch() == my_settings.NO_ALERTS
+    assert fetch() == "Tornado Warning"  # refetched, not the stale all-clear
+    assert len(calls) == 2
+
+
 def test_tuple_results_are_cacheable():
     calls = []
 
@@ -99,17 +115,18 @@ def test_entry_count_is_bounded():
     assert len(fetch_cache._all_caches[-1]) <= fetch_cache.MAX_ENTRIES
 
 
-def test_unhashable_args_bypass_cache():
+def test_str_and_float_forms_of_same_query_share_one_entry():
+    # commands pass str(lat) while schedulers pass floats — same upstream request
     calls = []
 
     @ttl_cache(ttl_seconds=60)
-    def fetch(x):
+    def fetch(lat, lon):
         calls.append(1)
         return "data"
 
-    fetch(["a", "list"])
-    fetch(["a", "list"])
-    assert len(calls) == 2
+    fetch(47.5, -122.3)
+    fetch("47.5", "-122.3")
+    assert len(calls) == 1
 
 
 def test_clear_all_caches_resets():
@@ -141,13 +158,30 @@ class _CountingOk:
         return resp
 
 
+QUAKE_EVENT_XML = (
+    "<quakeml><event>"
+    "<magnitude><value>4.2</value></magnitude>"
+    "<description><text>10km N of Somewhere</text></description>"
+    "</event></quakeml>"
+)
+
+
 def test_quake_repeat_command_hits_network_once(monkeypatch):
-    counting = _CountingOk("<quakeml></quakeml>")
+    counting = _CountingOk(QUAKE_EVENT_XML)
     monkeypatch.setattr(requests, "get", counting)
     first = locationdata.checkUSGSEarthQuake(47.0, -122.0)
     second = locationdata.checkUSGSEarthQuake(47.0, -122.0)
-    assert first == second == my_settings.NO_ALERTS
+    assert first == second and "4.2" in first
     assert counting.count == 1
+
+
+def test_quake_all_clear_is_refetched_every_time(monkeypatch):
+    # NO_ALERTS is a live safety answer — never served from cache
+    counting = _CountingOk("<quakeml></quakeml>")
+    monkeypatch.setattr(requests, "get", counting)
+    assert locationdata.checkUSGSEarthQuake(47.0, -122.0) == my_settings.NO_ALERTS
+    assert locationdata.checkUSGSEarthQuake(47.0, -122.0) == my_settings.NO_ALERTS
+    assert counting.count == 2
 
 
 def test_quake_failure_is_retried_not_cached(monkeypatch):

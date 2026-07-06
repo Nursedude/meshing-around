@@ -109,6 +109,7 @@ SWEPT_MODULES = [
     "modules/wx_meteo.py",
     "modules/dxspot.py",
     "modules/globalalert.py",
+    "modules/llm.py",
 ]
 
 

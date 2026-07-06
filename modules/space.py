@@ -22,19 +22,23 @@ def hf_band_conditions():
     # ham radio HF band conditions
     hf_cond = ""
     signalnoise = ""
-    band_cond = requests.get("https://www.hamqsl.com/solarxml.php", timeout=urlTimeoutSeconds)
-    if(band_cond.ok):
-        solarxml = xml.dom.minidom.parseString(band_cond.text)
-        for i in solarxml.getElementsByTagName("band"):
-            hf_cond += i.getAttribute("time")[0]+i.getAttribute("name") +"="+str(i.childNodes[0].data)+"\n"
-        hf_cond = hf_cond[:-1] # remove the last newline
-        for i in solarxml.getElementsByTagName("solardata"):
-            signalnoise = i.getElementsByTagName("signalnoise")[0].childNodes[0].data
-        hf_cond += "\nQRN:" + signalnoise
-    else:
-        logger.error("Solar: Error fetching HF band conditions")
+    try:
+        band_cond = requests.get("https://www.hamqsl.com/solarxml.php", timeout=urlTimeoutSeconds)
+        if(band_cond.ok):
+            solarxml = xml.dom.minidom.parseString(band_cond.text)
+            for i in solarxml.getElementsByTagName("band"):
+                hf_cond += i.getAttribute("time")[0]+i.getAttribute("name") +"="+str(i.childNodes[0].data)+"\n"
+            hf_cond = hf_cond[:-1] # remove the last newline
+            for i in solarxml.getElementsByTagName("solardata"):
+                signalnoise = i.getElementsByTagName("signalnoise")[0].childNodes[0].data
+            hf_cond += "\nQRN:" + signalnoise
+        else:
+            logger.error(f"Solar: Error fetching HF band conditions (HTTP {band_cond.status_code})")
+            hf_cond = ERROR_FETCHING_DATA
+    except Exception as e:
+        logger.error(f"Solar: Error fetching HF band conditions: {type(e).__name__}: {e}")
         hf_cond = ERROR_FETCHING_DATA
-    
+
     return hf_cond
 
 @ttl_cache()
@@ -74,17 +78,19 @@ def solar_conditions():
 @ttl_cache()
 def drap_xray_conditions():
     # DRAP X-ray flux conditions, from NOAA direct
-    drap_cond = ""
-    drap_cond = requests.get("https://services.swpc.noaa.gov/text/drap_global_frequencies.txt", headers=API_HEADERS, timeout=urlTimeoutSeconds)
-    if(drap_cond.ok):
-        drap_list = drap_cond.text.split('\n')
-        x_filter = '#  X-RAY Message :'
-        for line in drap_list:
-            if x_filter in line:
-                xray_flux = line.split(": ")[1]
-    else:
-        logger.error("Error fetching DRAP X-ray flux")
-        xray_flux = ERROR_FETCHING_DATA
+    xray_flux = ERROR_FETCHING_DATA  # honest default if the X-RAY line is absent from a 200 body
+    try:
+        drap_cond = requests.get("https://services.swpc.noaa.gov/text/drap_global_frequencies.txt", headers=API_HEADERS, timeout=urlTimeoutSeconds)
+        if(drap_cond.ok):
+            drap_list = drap_cond.text.split('\n')
+            x_filter = '#  X-RAY Message :'
+            for line in drap_list:
+                if x_filter in line:
+                    xray_flux = line.split(": ")[1]
+        else:
+            logger.error(f"Error fetching DRAP X-ray flux (HTTP {drap_cond.status_code})")
+    except Exception as e:
+        logger.error(f"Error fetching DRAP X-ray flux: {type(e).__name__}: {e}")
     return xray_flux
 
 @ttl_cache()
@@ -314,6 +320,10 @@ def getNextSatellitePass(satellite, lat=0, lon=0):
         else:
             logger.error(f"System: Error fetching satellite pass data {satellite}")
             pass_data = ERROR_FETCHING_DATA
+    except requests.exceptions.RequestException as e:
+        # a network failure is not a user-input mistake — do not send them chasing their NORAD#
+        logger.warning(f"System: Error fetching satellite pass data: {type(e).__name__}: {e}")
+        pass_data = ERROR_FETCHING_DATA
     except Exception as e:
         logger.warning(f"System: User supplied value {satellite} unknown or invalid")
         pass_data = "Provide NORAD# example use: 🛰️satpass 25544,33591"

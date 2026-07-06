@@ -294,7 +294,7 @@ def send_ollama_tooling_query(prompt, functions, model=None, max_tokens=450):
         "stream": False,
         "max_tokens": max_tokens
     }
-    result = requests.post(ollamaAPI, data=json.dumps(payload))
+    result = requests.post(ollamaAPI, data=json.dumps(payload), timeout=urlTimeoutSeconds * 5)
     if result.status_code == 200:
         return result.json()
     else:

@@ -59,10 +59,19 @@ Same discipline as the RNS/LXMF forks:
 ```bash
 git checkout meshforge
 git fetch upstream
-git merge <upstream-tag-or-sha>     # resolve conflicts in our 3 touched files
-python3 -m py_compile mesh_bot.py pong_bot.py modules/settings.py
+git merge <upstream-tag-or-sha>     # resolve conflicts in our touched files (see below)
+python3 -m py_compile mesh_bot.py pong_bot.py modules/*.py
+python3 -m pytest tests/            # audit-fix regression suite (2026-07-06)
 # canary one box, then roll the fleet
 ```
+
+Fork footprint (grows deliberately, audit-driven): the original gateway-arc
+union touched `mesh_bot.py` / `pong_bot.py` / `modules/settings.py`; the
+2026-07-06 data-source audit fix pass added `modules/fetch_cache.py` (new) and
+touched `modules/locationdata.py`, `modules/space.py`, `modules/globalalert.py`,
+`modules/wx_meteo.py`, `modules/dxspot.py`, `modules/llm.py`, plus `tests/`
+(pytest suite, upstream has none). Every audit-fix commit is written to be
+individually upstreamable as a PR — the divergence is a queue, not a residue.
 
 Re-base deliberately (pin-bump + canary), never a surprise floating-`main` pull.
 Keep `main` mirroring upstream so the merge base is always clean.

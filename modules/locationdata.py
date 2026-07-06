@@ -229,8 +229,8 @@ def get_NOAAtide(lat=0, lon=0):
         logger.error(f"Location:Error fetching tide data from NOAA: {type(e).__name__}: {e}")
         return my_settings.ERROR_FETCHING_DATA
 
-    if 'predictions' not in tide_json:
-        # CO-OPS returns 200 with an error body when the datagetter leg fails
+    if not tide_json.get('predictions'):
+        # CO-OPS returns 200 with an error body (or an empty list) when the datagetter leg fails
         logger.error(f"Location:Tide data from NOAA station {station_id} has no predictions: {str(tide_json)[:200]}")
         return my_settings.ERROR_FETCHING_DATA
 
@@ -607,7 +607,11 @@ def getIpawsAlert(lat=0, lon=0, shortAlerts = False):
         return my_settings.ERROR_FETCHING_DATA
     
     # main feed bulletins
-    alertxml = xml.dom.minidom.parseString(alert_data.text)
+    try:
+        alertxml = xml.dom.minidom.parseString(alert_data.text)
+    except Exception as e:
+        logger.warning(f"System: iPAWS main feed returned invalid XML: {type(e).__name__}: {e}")
+        return my_settings.ERROR_FETCHING_DATA
 
     # extract alerts from main feed
     for entry in alertxml.getElementsByTagName("entry"):
@@ -791,12 +795,11 @@ def get_volcano_usgs(lat=0, lon=0):
     # extract alerts from main feed; an unexpected shape is a failure, not the all-clear
     if isinstance(volcano_json, list):
         for alert in volcano_json:
-            # check ignore list
+            # check ignore list (must skip the ALERT, not just the matched word)
             if my_settings.ignoreUSGSEnable:
-                for word in my_settings.ignoreUSGSwords:
-                    if word.lower() in alert['volcano_name_appended'].lower():
-                        logger.debug(f"System: Ignoring USGS Alert: {alert['volcano_name_appended']} containing {word}")
-                        continue
+                if any(word.lower() in alert['volcano_name_appended'].lower() for word in my_settings.ignoreUSGSwords):
+                    logger.debug(f"System: Ignoring USGS Alert: {alert['volcano_name_appended']}")
+                    continue
             # check if the alert lat long is within the range of bot latitudeValue and longitudeValue
             if (alert['latitude'] >= my_settings.latitudeValue - 10 and alert['latitude'] <= my_settings.latitudeValue + 10) and (alert['longitude'] >= my_settings.longitudeValue - 10 and alert['longitude'] <= my_settings.longitudeValue + 10):
                 volcano_name = alert['volcano_name_appended']
@@ -923,12 +926,18 @@ def checkUSGSEarthQuake(lat=0, lon=0):
     #get largest mag in magnitude of the set of quakes
     largest_mag = 0.0
     for event in quake_xml.getElementsByTagName("event"):
-        mag = event.getElementsByTagName("magnitude")[0]
-        mag_value = float(mag.getElementsByTagName("value")[0].childNodes[0].nodeValue)
+        try:
+            mag = event.getElementsByTagName("magnitude")[0]
+            mag_value = float(mag.getElementsByTagName("value")[0].childNodes[0].nodeValue)
+        except (IndexError, ValueError, AttributeError):
+            continue  # event without a parseable magnitude
         if mag_value > largest_mag:
             largest_mag = mag_value
             # set description text
-            description_text = event.getElementsByTagName("description")[0].getElementsByTagName("text")[0].childNodes[0].nodeValue
+            try:
+                description_text = event.getElementsByTagName("description")[0].getElementsByTagName("text")[0].childNodes[0].nodeValue
+            except (IndexError, AttributeError):
+                description_text = ""
     largest_mag = round(largest_mag, 1)
     if quake_count == 0:
         return my_settings.NO_ALERTS
