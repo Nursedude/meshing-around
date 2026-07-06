@@ -10,6 +10,11 @@ EMERGENCY_RESPONSE = "MeshBot detected a possible request for Emergency Assistan
 MOTD = 'Thanks for using MeshBOT! Have a good day!'
 NO_ALERTS = "No alerts found."
 
+# identifying User-Agent for external API calls. NWS documents that requests
+# without a User-Agent may be denied (https://www.weather.gov/documentation/services-web-api)
+API_USER_AGENT = "meshing-around (+https://github.com/SpudGunMan/meshing-around)"
+API_HEADERS = {'User-Agent': API_USER_AGENT}
+
 # setup the global variables
 SITREP_NODE_COUNT = 3 # number of nodes to report in the sitrep
 msg_history = [] # message history for the store and forward feature

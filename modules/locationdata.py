@@ -191,7 +191,7 @@ def get_NOAAtide(lat=0, lon=0):
         lon = my_settings.longitudeValue
     station_lookup_url = "https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/tidepredstations.json?lat=" + str(lat) + "&lon=" + str(lon) + "&radius=50"
     try:
-        station_data = requests.get(station_lookup_url, timeout=my_settings.urlTimeoutSeconds)
+        station_data = requests.get(station_lookup_url, headers=my_settings.API_HEADERS, timeout=my_settings.urlTimeoutSeconds)
         if station_data.ok:
             station_json = station_data.json()
         else:
@@ -216,7 +216,7 @@ def get_NOAAtide(lat=0, lon=0):
         station_url += "&units=english"
 
     try:
-        tide_data = requests.get(station_url, timeout=my_settings.urlTimeoutSeconds)
+        tide_data = requests.get(station_url, headers=my_settings.API_HEADERS, timeout=my_settings.urlTimeoutSeconds)
         if tide_data.ok:
             tide_json = tide_data.json()
         else:
@@ -265,7 +265,7 @@ def get_NOAAweather(lat=0, lon=0, unit=0, report_days=None):
     weather_api = "https://api.weather.gov/points/" + str(lat) + "," + str(lon)
     # extract the "forecast": property from the JSON response
     try:
-        weather_data = requests.get(weather_api, timeout=my_settings.urlTimeoutSeconds)
+        weather_data = requests.get(weather_api, headers=my_settings.API_HEADERS, timeout=my_settings.urlTimeoutSeconds)
         if not weather_data.ok:
             logger.warning("Location:Error fetching weather data from NOAA for location")
             return my_settings.ERROR_FETCHING_DATA
@@ -276,7 +276,7 @@ def get_NOAAweather(lat=0, lon=0, unit=0, report_days=None):
     weather_json = weather_data.json()
     forecast_url = weather_json['properties']['forecast']
     try:
-        forecast_data = requests.get(forecast_url, timeout=my_settings.urlTimeoutSeconds)
+        forecast_data = requests.get(forecast_url, headers=my_settings.API_HEADERS, timeout=my_settings.urlTimeoutSeconds)
         if not forecast_data.ok:
             logger.warning("Location:Error fetching weather forecast from NOAA")
             return my_settings.ERROR_FETCHING_DATA
@@ -416,7 +416,7 @@ def getWeatherAlertsNOAA(lat=0, lon=0, useDefaultLatLon=False):
     #logger.debug("Location:Fetching weather alerts from NOAA for " + str(lat) + ", " + str(lon))
     
     try:
-        alert_data = requests.get(alert_url, timeout=my_settings.urlTimeoutSeconds)
+        alert_data = requests.get(alert_url, headers=my_settings.API_HEADERS, timeout=my_settings.urlTimeoutSeconds)
         if not alert_data.ok:
             logger.warning("Location:Error fetching weather alerts from NOAA bad data")
             return my_settings.ERROR_FETCHING_DATA
@@ -520,7 +520,7 @@ def getActiveWeatherAlertsDetailNOAA(lat=0, lon=0):
     #logger.debug("Location:Fetching weather alerts detailed from NOAA for " + str(lat) + ", " + str(lon))
     
     try:
-        alert_data = requests.get(alert_url, timeout=my_settings.urlTimeoutSeconds)
+        alert_data = requests.get(alert_url, headers=my_settings.API_HEADERS, timeout=my_settings.urlTimeoutSeconds)
         if not alert_data.ok:
             logger.warning("Location:Error fetching weather alerts from NOAA bad data")
             return my_settings.ERROR_FETCHING_DATA
@@ -571,7 +571,7 @@ def getIpawsAlert(lat=0, lon=0, shortAlerts = False):
 
     # get the alerts from FEMA
     try:
-        alert_data = requests.get(alert_url, timeout=my_settings.urlTimeoutSeconds)
+        alert_data = requests.get(alert_url, headers=my_settings.API_HEADERS, timeout=my_settings.urlTimeoutSeconds)
         if not alert_data.ok:
             logger.warning(f"System: iPAWS fetching IPAWS alerts from FEMA (HTTP {alert_data.status_code})")
             return my_settings.ERROR_FETCHING_DATA
@@ -605,7 +605,7 @@ def getIpawsAlert(lat=0, lon=0, shortAlerts = False):
 
         try:
             # get the linked alert data from FEMA
-            linked_data = requests.get(link, timeout=my_settings.urlTimeoutSeconds)
+            linked_data = requests.get(link, headers=my_settings.API_HEADERS, timeout=my_settings.urlTimeoutSeconds)
             if not linked_data.ok or not linked_data.text.strip():
                 # if the linked data is not ok, skip this alert
                 #logger.warning(f"System: iPAWS Error fetching linked alert data from {link}")
@@ -703,7 +703,7 @@ def get_flood_noaa(lat=0, lon=0, uid=None):
     Returns a formatted string or an error message.
     """
     api_url = "https://api.water.noaa.gov/nwps/v1/gauges/"
-    headers = {'accept': 'application/json'}
+    headers = {'accept': 'application/json', **my_settings.API_HEADERS}
     if not uid:
         logger.warning(f"Location:No flood gauge data found for UID {uid}")
         return my_settings.ERROR_FETCHING_DATA
@@ -747,7 +747,7 @@ def get_volcano_usgs(lat=0, lon=0):
     # get the latest volcano alert from USGS from CAP feed
     usgs_volcano_url = "https://volcanoes.usgs.gov/hans-public/api/volcano/getCapElevated"
     try:
-        volcano_data = requests.get(usgs_volcano_url, timeout=my_settings.urlTimeoutSeconds)
+        volcano_data = requests.get(usgs_volcano_url, headers=my_settings.API_HEADERS, timeout=my_settings.urlTimeoutSeconds)
         if not volcano_data.ok:
             logger.warning("System: Issue with fetching volcano alerts from USGS")
             return my_settings.ERROR_FETCHING_DATA
@@ -791,7 +791,7 @@ def get_volcano_usgs(lat=0, lon=0):
 def get_nws_marine(zone, days=3):
     # forecast from NWS coastal products
     try:
-        marine_pz_data = requests.get(zone, timeout=my_settings.urlTimeoutSeconds)
+        marine_pz_data = requests.get(zone, headers=my_settings.API_HEADERS, timeout=my_settings.urlTimeoutSeconds)
         if not marine_pz_data.ok:
             logger.warning(f"Location:Error fetching NWS Marine data (HTTP {marine_pz_data.status_code})")
             return my_settings.ERROR_FETCHING_DATA
@@ -865,7 +865,7 @@ def checkUSGSEarthQuake(lat=0, lon=0):
     quake_count = 0
     # fetch the earthquake data from USGS
     try:
-        quake_data = requests.get(USGSquake_url, timeout=my_settings.urlTimeoutSeconds)
+        quake_data = requests.get(USGSquake_url, headers=my_settings.API_HEADERS, timeout=my_settings.urlTimeoutSeconds)
         if not quake_data.ok:
             logger.warning("Location:Error fetching earthquake data from USGS")
             return my_settings.NO_ALERTS

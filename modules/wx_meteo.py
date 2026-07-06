@@ -4,10 +4,11 @@
 import requests
 import json
 from modules.log import logger
-from modules.settings import ERROR_FETCHING_DATA
+from modules.settings import ERROR_FETCHING_DATA, urlTimeoutSeconds
 
 def get_weather_data(api_url, params):
-    response = requests.get(api_url, params=params)
+    # timeout is required: a hung socket here stalls the single packet-processing path
+    response = requests.get(api_url, params=params, timeout=urlTimeoutSeconds)
     response.raise_for_status()  # Raise an error for bad status codes
     return response.json()
 

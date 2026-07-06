@@ -4,7 +4,7 @@
 import requests
 from datetime import datetime, timedelta
 from modules.log import logger
-from modules.settings import latitudeValue, longitudeValue
+from modules.settings import latitudeValue, longitudeValue, urlTimeoutSeconds
 
 trap_list_dxspotter = ["dx"]
 
@@ -102,7 +102,7 @@ def get_spothole_spots(source=None, band=None, mode=None, date=None, dx_call=Non
     
     try:
         headers = {"User-Agent": "meshing-around-dxspotter/1.0"}
-        response = requests.get(url, params=params, headers=headers)
+        response = requests.get(url, params=params, headers=headers, timeout=urlTimeoutSeconds)
         response.raise_for_status()
         spots = response.json()
     except Exception as e:

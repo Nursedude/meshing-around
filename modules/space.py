@@ -10,7 +10,8 @@ from datetime import timezone
 from modules.log import logger, getPrettyTime
 from modules.settings import (latitudeValue, longitudeValue, zuluTime,
                               n2yoAPIKey, urlTimeoutSeconds, use_metric,
-                              ERROR_FETCHING_DATA, NO_DATA_NOGPS, NO_ALERTS)
+                              ERROR_FETCHING_DATA, NO_DATA_NOGPS, NO_ALERTS,
+                              API_HEADERS)
 import math
 
 trap_list_solarconditions = ("sun", "moon", "solar", "hfcond", "satpass", "howtall")
@@ -70,7 +71,7 @@ def solar_conditions():
 def drap_xray_conditions():
     # DRAP X-ray flux conditions, from NOAA direct
     drap_cond = ""
-    drap_cond = requests.get("https://services.swpc.noaa.gov/text/drap_global_frequencies.txt", timeout=urlTimeoutSeconds)
+    drap_cond = requests.get("https://services.swpc.noaa.gov/text/drap_global_frequencies.txt", headers=API_HEADERS, timeout=urlTimeoutSeconds)
     if(drap_cond.ok):
         drap_list = drap_cond.text.split('\n')
         x_filter = '#  X-RAY Message :'
@@ -87,7 +88,7 @@ def get_noaa_scales_summary():
     Show latest observed, 24-hour max, and predicted geomagnetic, storm, and blackout data.
     """
     try:
-        response = requests.get("https://services.swpc.noaa.gov/products/noaa-scales.json", timeout=urlTimeoutSeconds)
+        response = requests.get("https://services.swpc.noaa.gov/products/noaa-scales.json", headers=API_HEADERS, timeout=urlTimeoutSeconds)
         if response.ok:
             data = response.json()
             today = datetime.utcnow().date()
