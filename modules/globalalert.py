@@ -8,7 +8,7 @@ import requests # pip install requests
 import bs4 as bs # pip install beautifulsoup4
 #import xml.dom.minidom 
 from modules.log import logger
-from modules.settings import urlTimeoutSeconds, NO_ALERTS, myRegionalKeysDE
+from modules.settings import urlTimeoutSeconds, NO_ALERTS, ERROR_FETCHING_DATA, myRegionalKeysDE
 
 trap_list_location_eu = ("ukalert",)
 trap_list_location_de = ("dealert",)
@@ -22,9 +22,10 @@ def get_govUK_alerts(lat, lon):
         # the alerts are in <h2 class="govuk-heading-m" id="alert-status">
         alert = soup.find('h2', class_='govuk-heading-m', id='alert-status')
     except Exception as e:
-        logger.warning("Error getting UK alerts: " + str(e))
-        return 
-    
+        # returning None here would be silently dropped by send_message
+        logger.warning(f"Error getting UK alerts: {type(e).__name__}: {e}")
+        return ERROR_FETCHING_DATA
+
     if alert:
         return "🚨" + alert.get_text(strip=True)
     else:
@@ -44,8 +45,9 @@ def get_nina_alerts():
                 alerts.append(f"🚨 {title}")
         return "\n".join(alerts) if alerts else NO_ALERTS
     except Exception as e:
-        logger.warning("Error getting NINA DE alerts: " + str(e))
-        return NO_ALERTS
+        # a fetch failure must never read as the all-clear NO_ALERTS
+        logger.warning(f"Error getting NINA DE alerts: {type(e).__name__}: {e}")
+        return ERROR_FETCHING_DATA
 
 def get_wxUKgov():
     # get UK weather warnings, these look icky

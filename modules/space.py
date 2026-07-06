@@ -149,9 +149,11 @@ def get_noaa_scales_summary():
             output.append(format_entry("Predicted:", predicted_g))
             return "\n".join(output)
         else:
-            return NO_ALERTS
+            # a failed fetch must never read as the all-clear NO_ALERTS
+            logger.warning(f"Error fetching services.swpc.noaa.gov (HTTP {response.status_code})")
+            return ERROR_FETCHING_DATA
     except Exception as e:
-        logger.warning(f"Error fetching services.swpc.noaa.gov: {e}")
+        logger.warning(f"Error fetching services.swpc.noaa.gov: {type(e).__name__}: {e}")
         return ERROR_FETCHING_DATA
 
 def get_sun(lat=0, lon=0):

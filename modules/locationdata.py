@@ -195,17 +195,17 @@ def get_NOAAtide(lat=0, lon=0):
         if station_data.ok:
             station_json = station_data.json()
         else:
-            logger.error("Location:Error fetching tide station table from NOAA")
+            logger.error(f"Location:Error fetching tide station table from NOAA (HTTP {station_data.status_code})")
             return my_settings.ERROR_FETCHING_DATA
-        
+
         if station_json['stationList'] == [] or station_json['stationList'] is None:
             logger.error("Location:No tide station found")
             return "No tide station found with info provided"
-        
+
         station_id = station_json['stationList'][0]['stationId']
 
-    except (requests.exceptions.RequestException, json.JSONDecodeError):
-        logger.error("Location:Error fetching tide station table from NOAA")
+    except (requests.exceptions.RequestException, json.JSONDecodeError) as e:
+        logger.error(f"Location:Error fetching tide station table from NOAA: {type(e).__name__}: {e}")
         return my_settings.ERROR_FETCHING_DATA
     
     station_url = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?date=today&time_zone=lst_ldt&datum=MLLW&product=predictions&interval=hilo&format=json&station=" + station_id
@@ -220,11 +220,16 @@ def get_NOAAtide(lat=0, lon=0):
         if tide_data.ok:
             tide_json = tide_data.json()
         else:
-            logger.error("Location:Error fetching tide data from NOAA")
+            logger.error(f"Location:Error fetching tide data from NOAA (HTTP {tide_data.status_code})")
             return my_settings.ERROR_FETCHING_DATA
 
-    except (requests.exceptions.RequestException, json.JSONDecodeError):
-        logger.error("Location:Error fetching tide data from NOAA")
+    except (requests.exceptions.RequestException, json.JSONDecodeError) as e:
+        logger.error(f"Location:Error fetching tide data from NOAA: {type(e).__name__}: {e}")
+        return my_settings.ERROR_FETCHING_DATA
+
+    if 'predictions' not in tide_json:
+        # CO-OPS returns 200 with an error body when the datagetter leg fails
+        logger.error(f"Location:Tide data from NOAA station {station_id} has no predictions: {str(tide_json)[:200]}")
         return my_settings.ERROR_FETCHING_DATA
 
     tide_data = tide_json['predictions']
@@ -267,26 +272,34 @@ def get_NOAAweather(lat=0, lon=0, unit=0, report_days=None):
     try:
         weather_data = requests.get(weather_api, headers=my_settings.API_HEADERS, timeout=my_settings.urlTimeoutSeconds)
         if not weather_data.ok:
-            logger.warning("Location:Error fetching weather data from NOAA for location")
+            logger.warning(f"Location:Error fetching weather data from NOAA for location (HTTP {weather_data.status_code})")
             return my_settings.ERROR_FETCHING_DATA
-    except Exception:
-        logger.warning(f"Location:Error fetching weather data malformed: {Exception}")
+    except Exception as e:
+        logger.warning(f"Location:Error fetching weather data from NOAA: {type(e).__name__}: {e}")
         return my_settings.ERROR_FETCHING_DATA
     # get the forecast URL from the JSON response
-    weather_json = weather_data.json()
-    forecast_url = weather_json['properties']['forecast']
+    try:
+        weather_json = weather_data.json()
+        forecast_url = weather_json['properties']['forecast']
+    except (ValueError, KeyError, TypeError) as e:
+        logger.warning(f"Location:NOAA points response missing forecast URL: {type(e).__name__}: {e}")
+        return my_settings.ERROR_FETCHING_DATA
     try:
         forecast_data = requests.get(forecast_url, headers=my_settings.API_HEADERS, timeout=my_settings.urlTimeoutSeconds)
         if not forecast_data.ok:
-            logger.warning("Location:Error fetching weather forecast from NOAA")
+            logger.warning(f"Location:Error fetching weather forecast from NOAA (HTTP {forecast_data.status_code})")
             return my_settings.ERROR_FETCHING_DATA
-    except Exception:
-        logger.warning(f"Location:Error fetching weather data missing: {Exception}")
+    except Exception as e:
+        logger.warning(f"Location:Error fetching weather forecast from NOAA: {type(e).__name__}: {e}")
         return my_settings.ERROR_FETCHING_DATA
     
     # from periods, get the detailedForecast from number of days in NOAAforecastDuration
-    forecast_json = forecast_data.json()
-    forecast = forecast_json['properties']['periods']
+    try:
+        forecast_json = forecast_data.json()
+        forecast = forecast_json['properties']['periods']
+    except (ValueError, KeyError, TypeError) as e:
+        logger.warning(f"Location:NOAA forecast response missing periods: {type(e).__name__}: {e}")
+        return my_settings.ERROR_FETCHING_DATA
     for day in forecast[:report_days]:
         # abreviate the forecast
 
@@ -425,7 +438,11 @@ def getWeatherAlertsNOAA(lat=0, lon=0, useDefaultLatLon=False):
         return my_settings.ERROR_FETCHING_DATA
     
     alerts = ""
-    alertxml = xml.dom.minidom.parseString(alert_data.text)
+    try:
+        alertxml = xml.dom.minidom.parseString(alert_data.text)
+    except Exception as e:
+        logger.warning(f"Location:NOAA alert feed returned invalid XML: {type(e).__name__}: {e}")
+        return my_settings.ERROR_FETCHING_DATA
     for i in alertxml.getElementsByTagName("entry"):
         title = i.getElementsByTagName("title")[0].childNodes[0].nodeValue
         area_desc_nodes = i.getElementsByTagName("cap:areaDesc")
@@ -529,7 +546,11 @@ def getActiveWeatherAlertsDetailNOAA(lat=0, lon=0):
         return my_settings.ERROR_FETCHING_DATA
     
     alerts = ""
-    alertxml = xml.dom.minidom.parseString(alert_data.text)
+    try:
+        alertxml = xml.dom.minidom.parseString(alert_data.text)
+    except Exception as e:
+        logger.warning(f"Location:NOAA alert detail feed returned invalid XML: {type(e).__name__}: {e}")
+        return my_settings.ERROR_FETCHING_DATA
 
     for i in alertxml.getElementsByTagName("entry"):
         summary = i.getElementsByTagName("summary")[0].childNodes[0].nodeValue
@@ -749,14 +770,18 @@ def get_volcano_usgs(lat=0, lon=0):
     try:
         volcano_data = requests.get(usgs_volcano_url, headers=my_settings.API_HEADERS, timeout=my_settings.urlTimeoutSeconds)
         if not volcano_data.ok:
-            logger.warning("System: Issue with fetching volcano alerts from USGS")
+            logger.warning(f"System: Issue with fetching volcano alerts from USGS (HTTP {volcano_data.status_code})")
             return my_settings.ERROR_FETCHING_DATA
-    except (requests.exceptions.RequestException):
-        logger.warning("System: Issue with fetching volcano alerts from USGS")
+    except (requests.exceptions.RequestException) as e:
+        logger.warning(f"System: Issue with fetching volcano alerts from USGS: {type(e).__name__}: {e}")
         return my_settings.ERROR_FETCHING_DATA
-    volcano_json = volcano_data.json()
-    # extract alerts from main feed
-    if volcano_json and isinstance(volcano_json, list):
+    try:
+        volcano_json = volcano_data.json()
+    except ValueError as e:
+        logger.warning(f"System: USGS volcano API returned invalid JSON: {type(e).__name__}: {e}")
+        return my_settings.ERROR_FETCHING_DATA
+    # extract alerts from main feed; an unexpected shape is a failure, not the all-clear
+    if isinstance(volcano_json, list):
         for alert in volcano_json:
             # check ignore list
             if my_settings.ignoreUSGSEnable:
@@ -777,8 +802,8 @@ def get_volcano_usgs(lat=0, lon=0):
                 #logger.debug(f"System: USGS volcano alert not in range: {alert['volcano_name_appended']}")
                 continue
     else:
-        logger.debug("Location:Error fetching volcano data from USGS")
-        return my_settings.NO_ALERTS
+        logger.warning(f"Location:USGS volcano API returned unexpected shape: {type(volcano_json).__name__}")
+        return my_settings.ERROR_FETCHING_DATA
     if alerts == "":
         return my_settings.NO_ALERTS
     # trim off last newline
@@ -864,23 +889,25 @@ def checkUSGSEarthQuake(lat=0, lon=0):
     description_text = ""
     quake_count = 0
     # fetch the earthquake data from USGS
+    # a fetch failure must never read as the all-clear NO_ALERTS — a user
+    # checking hazards after an event can't tell "no quakes" from "no internet"
     try:
         quake_data = requests.get(USGSquake_url, headers=my_settings.API_HEADERS, timeout=my_settings.urlTimeoutSeconds)
         if not quake_data.ok:
-            logger.warning("Location:Error fetching earthquake data from USGS")
-            return my_settings.NO_ALERTS
+            logger.warning(f"Location:Error fetching earthquake data from USGS (HTTP {quake_data.status_code})")
+            return my_settings.ERROR_FETCHING_DATA
         if not quake_data.text.strip():
-            return my_settings.NO_ALERTS
+            logger.warning("Location:USGS earthquake API returned an empty body")
+            return my_settings.ERROR_FETCHING_DATA
         try:
             quake_xml = xml.dom.minidom.parseString(quake_data.text)
         except Exception as e:
-            logger.warning(f"Location: USGS earthquake API returned invalid XML: {e}")
-            return my_settings.NO_ALERTS
-    except (requests.exceptions.RequestException):
-        logger.warning("Location:Error fetching earthquake data from USGS")
-        return my_settings.NO_ALERTS
+            logger.warning(f"Location: USGS earthquake API returned invalid XML: {type(e).__name__}: {e}")
+            return my_settings.ERROR_FETCHING_DATA
+    except (requests.exceptions.RequestException) as e:
+        logger.warning(f"Location:Error fetching earthquake data from USGS: {type(e).__name__}: {e}")
+        return my_settings.ERROR_FETCHING_DATA
 
-    quake_xml = xml.dom.minidom.parseString(quake_data.text)
     quake_count = len(quake_xml.getElementsByTagName("event"))
 
     #get largest mag in magnitude of the set of quakes

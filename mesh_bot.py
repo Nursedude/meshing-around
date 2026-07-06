@@ -1360,8 +1360,9 @@ def handle_riverFlow(message, message_from_id, deviceID, vox=False):
 def handle_mwx(message_from_id, deviceID, cmd):
     # NOAA Coastal and Marine Weather
     if my_settings.myCoastalZone is None:
+        # missing config is not the all-clear NO_ALERTS — tell the user what is wrong
         logger.warning("System: Coastal Zone not set, please set in config.ini")
-        return my_settings.NO_ALERTS
+        return "🌊Coastal zone not set in config.ini, mwx is unavailable"
     return get_nws_marine(zone=myCoastalZone, days=coastalForecastDays)
 
 def handle_wxc(message_from_id, deviceID, cmd, days=None, vox=False):
