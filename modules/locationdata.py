@@ -10,6 +10,7 @@ import xml.dom.minidom # used for parsing XML
 import xml.parsers.expat # used for parsing XML
 from datetime import datetime
 from modules.log import logger
+from modules.fetch_cache import ttl_cache
 import modules.settings as my_settings
 import math
 import csv
@@ -183,6 +184,7 @@ def getArtSciRepeaters(lat=0, lon=0):
         msg = f"no results.. sorry"
     return msg
 
+@ttl_cache()
 def get_NOAAtide(lat=0, lon=0):
     station_id = ""
     location = lat,lon
@@ -252,6 +254,7 @@ def get_NOAAtide(lat=0, lon=0):
     tide_table = tide_table[:-1]
     return tide_table
     
+@ttl_cache()
 def get_NOAAweather(lat=0, lon=0, unit=0, report_days=None):
     # get weather report from NOAA for forecast detailed
     weather = ""
@@ -414,6 +417,7 @@ def abbreviate_noaa(data=""):
 
     return text
 
+@ttl_cache()
 def getWeatherAlertsNOAA(lat=0, lon=0, useDefaultLatLon=False):
     # get weather alerts from NOAA limited to ALERT_COUNT with the total number of alerts found
     alerts = ""
@@ -524,6 +528,7 @@ def alertBrodcastNOAA():
     
     return False
 
+@ttl_cache()
 def getActiveWeatherAlertsDetailNOAA(lat=0, lon=0):
     # get the latest details of weather alerts from NOAA
     alerts = ""
@@ -580,6 +585,7 @@ def getActiveWeatherAlertsDetailNOAA(lat=0, lon=0):
     
     return alerts
 
+@ttl_cache()
 def getIpawsAlert(lat=0, lon=0, shortAlerts = False):
     # get the latest IPAWS alert from FEMA
     alert = ''
@@ -718,6 +724,7 @@ def getIpawsAlert(lat=0, lon=0, shortAlerts = False):
 
     return alert
 
+@ttl_cache()
 def get_flood_noaa(lat=0, lon=0, uid=None):
     """
     Fetch the latest flood alert from NOAA for a given gauge UID.
@@ -760,6 +767,7 @@ def get_flood_noaa(lat=0, lon=0, uid=None):
         logger.debug(f"Location:Error extracting flood gauge data from NOAA for {uid}: {e}")
         return my_settings.ERROR_FETCHING_DATA
 
+@ttl_cache()
 def get_volcano_usgs(lat=0, lon=0):
     alerts = ''
     if lat == 0 and lon == 0:
@@ -813,6 +821,7 @@ def get_volcano_usgs(lat=0, lon=0):
     alerts = abbreviate_noaa(alerts)
     return alerts
 
+@ttl_cache()
 def get_nws_marine(zone, days=3):
     # forecast from NWS coastal products
     try:
@@ -877,6 +886,7 @@ def get_nws_marine(zone, days=3):
         return my_settings.NO_DATA_NOGPS
     return marine_pz_report
 
+@ttl_cache()
 def checkUSGSEarthQuake(lat=0, lon=0):
     if lat == 0 and lon == 0:
         lat = my_settings.latitudeValue

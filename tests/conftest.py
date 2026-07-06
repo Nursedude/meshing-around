@@ -62,6 +62,22 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _clear_fetch_caches():
+    """ttl_cache state must never leak between tests."""
+    try:
+        from modules.fetch_cache import clear_all_caches
+    except ImportError:
+        yield
+        return
+    clear_all_caches()
+    yield
+    clear_all_caches()
+
+
 def load_function(relative_path, func_name, namespace):
     """Extract one function from a source file and exec it against stub
     globals. Lets tests drive mesh_bot.py logic without importing the

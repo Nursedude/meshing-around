@@ -4,6 +4,7 @@
 import requests
 import json
 from modules.log import logger
+from modules.fetch_cache import ttl_cache
 from modules.settings import ERROR_FETCHING_DATA, urlTimeoutSeconds
 
 def get_weather_data(api_url, params):
@@ -12,6 +13,7 @@ def get_weather_data(api_url, params):
     response.raise_for_status()  # Raise an error for bad status codes
     return response.json()
 
+@ttl_cache()
 def get_wx_meteo(lat=0, lon=0, unit=0):
 	# set forcast days 1 or 3
 	forecastDays = 3
@@ -196,6 +198,7 @@ def get_wx_meteo(lat=0, lon=0, unit=0):
 
 	return weather_report
 
+@ttl_cache()
 def get_flood_openmeteo(lat=0, lon=0):
 	# set forcast days 1 or 3
 	forecastDays = 3

@@ -8,6 +8,7 @@ from datetime import datetime
 import ephem # pip install pyephem
 from datetime import timezone
 from modules.log import logger, getPrettyTime
+from modules.fetch_cache import ttl_cache
 from modules.settings import (latitudeValue, longitudeValue, zuluTime,
                               n2yoAPIKey, urlTimeoutSeconds, use_metric,
                               ERROR_FETCHING_DATA, NO_DATA_NOGPS, NO_ALERTS,
@@ -16,6 +17,7 @@ import math
 
 trap_list_solarconditions = ("sun", "moon", "solar", "hfcond", "satpass", "howtall")
 
+@ttl_cache()
 def hf_band_conditions():
     # ham radio HF band conditions
     hf_cond = ""
@@ -35,6 +37,7 @@ def hf_band_conditions():
     
     return hf_cond
 
+@ttl_cache()
 def solar_conditions():
     # radio related solar conditions from hamsql.com
     solar_cond = ""
@@ -68,6 +71,7 @@ def solar_conditions():
         solar_cond = ERROR_FETCHING_DATA
     return solar_cond
 
+@ttl_cache()
 def drap_xray_conditions():
     # DRAP X-ray flux conditions, from NOAA direct
     drap_cond = ""
@@ -83,6 +87,7 @@ def drap_xray_conditions():
         xray_flux = ERROR_FETCHING_DATA
     return xray_flux
 
+@ttl_cache()
 def get_noaa_scales_summary():
     """
     Show latest observed, 24-hour max, and predicted geomagnetic, storm, and blackout data.
