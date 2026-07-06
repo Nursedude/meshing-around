@@ -1,0 +1,25 @@
+# Fork regression gate (MeshForge, 2026-07-06): the tests/ suite runs without
+# a radio or the full dependency stack (conftest stubs geopy/maidenhead/bs4/
+# ephem and runs from a temp dir). This gate is the model-independent truth
+# for fork changes — if it is red, the change is wrong, whoever (or whatever)
+# wrote it.
+name: tests
+
+on:
+  push:
+    branches: [meshforge, "audit-fixes-*"]
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install pytest requests
+      - run: python -m pytest tests/ -v
