@@ -485,7 +485,10 @@ def handle_wxalert(message_from_id, deviceID, message):
         else:
             weatherAlert = getWeatherAlertsNOAA(str(location[0]), str(location[1]))
         
-        if my_settings.NO_ALERTS not in weatherAlert:
+        # getWeatherAlertsNOAA returns (alerts, count) on success; everything else
+        # (NO_ALERTS / ERROR_FETCHING_DATA / NO_DATA_NOGPS and the detail path) is a
+        # plain string — indexing a string sent users a single character (#324)
+        if isinstance(weatherAlert, tuple):
             weatherAlert = weatherAlert[0]
         return weatherAlert
 
