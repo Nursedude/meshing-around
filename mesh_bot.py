@@ -179,8 +179,12 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
                 bot_response = restrictedResponse
         else:
             logger.debug(f"System: Bot detected Commands:{cmds} From: {get_name_from_number(message_from_id)} isDM:{isDM} playing:{playing}")
-            # run the first command after sorting
-            bot_response = command_handler[cmds[0]['cmd']]()
+            # run the first command after sorting; a crashed handler must never turn into silence for the user
+            try:
+                bot_response = command_handler[cmds[0]['cmd']]()
+            except Exception as e:
+                logger.error(f"System: Command '{cmds[0]['cmd']}' crashed: {type(e).__name__}: {e}", exc_info=True)
+                bot_response = f"🤖Command '{cmds[0]['cmd']}' failed. Try again later."
             # append the command to the cmdHistory list for lheard and history
             if len(cmdHistory) > 50:
                 cmdHistory.pop(0)
