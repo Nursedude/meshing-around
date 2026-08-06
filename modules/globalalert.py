@@ -36,7 +36,7 @@ def get_nina_alerts():
         # get api.bund.dev alerts
         alerts = []
         for regionalKey in myRegionalKeysDE:
-            url = ("https://nina.api.proxy.bund.dev/api31/dashboard/" + regionalKey + ".json")
+            url = ("https://warnung.bund.de/api31/dashboard/071380000000.json" + regionalKey + ".json")
             response = requests.get(url, timeout=urlTimeoutSeconds)
             data = response.json()
 
@@ -46,6 +46,7 @@ def get_nina_alerts():
         return "\n".join(alerts) if alerts else NO_ALERTS
     except Exception as e:
         # a fetch failure must never read as the all-clear NO_ALERTS
+        # (fork keeps ERROR_FETCHING_DATA over upstream's NO_ALERTS return)
         logger.warning(f"Error getting NINA DE alerts: {type(e).__name__}: {e}")
         return ERROR_FETCHING_DATA
 

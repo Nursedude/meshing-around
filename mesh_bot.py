@@ -18,6 +18,7 @@ from modules.system import *
 # list of commands to remove from the default list for DM only
 restrictedCommands = ["blackjack", "videopoker", "dopewars", "lemonstand", "golfsim", "mastermind", "hangman", "hamtest", "tictactoe", "tic-tac-toe", "quiz", "q:", "survey", "s:", "battleship"]
 restrictedResponse = "🤖only available in a Direct Message📵" # "" for none
+blackhole_mode = False
 
 def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_number, deviceID, isDM):
     global cmdHistory
@@ -170,8 +171,11 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
         # Check if user is already playing a game
         playing, game = isPlayingGame(message_from_id)[0], isPlayingGame(message_from_id)[1]
     
+        if blackhole_mode and cmds[0]['cmd'] != "cmd" and str(message_from_id) not in my_settings.bbs_admin_list:
+            logger.warning(f"System: Command lockdown active. Blocked Command:{cmds[0]['cmd']} From: {get_name_from_number(message_from_id)}")
+            # bot_response = "🤖Command lockdown active. Only BBS admins may issue commands."
         # Block restricted commands if not DM
-        if (cmds[0]['cmd'] in restrictedCommands and not isDM) or (cmds[0]['cmd'] in restrictedCommands and playing) or playing:
+        elif (cmds[0]['cmd'] in restrictedCommands and not isDM) or (cmds[0]['cmd'] in restrictedCommands and playing) or playing:
             logger.debug(f"System: Bot restricted Command:{cmds[0]['cmd']} From: {get_name_from_number(message_from_id)} isDM:{isDM} playing:{playing}")
             if playing:
                 bot_response = f"🤖You are already playing {game}, finish that first."
@@ -192,8 +196,27 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
     return bot_response
 
 def handle_cmd(message, message_from_id, deviceID):
+    global blackhole_mode
     # why CMD? its just a command list. a terminal would normally use "Help"
     # I didnt want to invoke the word "help" in Meshtastic due to its possible emergency use
+    msg = message.strip().lower()
+    parts = msg.split()
+
+    if len(parts) > 1:
+        if parts[1] == "stop":
+            if str(message_from_id) in my_settings.bbs_admin_list:
+                blackhole_mode = True
+                return "🤖Command lockdown enabled. Only BBS admins may issue commands."
+            return "🤖Only BBS admins may use cmd stop"
+        if parts[1] == "start":
+            if str(message_from_id) in my_settings.bbs_admin_list:
+                blackhole_mode = False
+                return "🤖Command lockdown disabled. Commands available normally."
+            return "🤖Only BBS admins may use cmd start"
+        if parts[1] == "status":
+            status = "enabled" if blackhole_mode else "disabled"
+            return f"🤖Command lockdown is {status}."
+
     if " " in message and message.split(" ")[1] in trap_list:
         return "🤖 just use the commands directly in chat"
     return help_message
@@ -292,7 +315,10 @@ def handle_ping(message_from_id, deviceID,  message, hop, snr, rssi, isDM, chann
         msg += " [F]"
     
     if (float(snr) != 0 or float(rssi) != 0) and "Hop" not in hop:
+        noiseFloor = localTelemetryData[deviceID].get('noiseFloor', 0)
         msg += f"\nSNR:{snr} RSSI:{rssi}"
+        if noiseFloor != 0:
+            msg += f" NF:{round(noiseFloor, 2)}"
     elif "Hop" in hop:
         # janky, remove the words Gateway or MQTT if present
         hop = hop.replace("Gateway", "").replace("Direct", "").replace("MQTT", "").strip()
@@ -487,7 +513,8 @@ def handle_wxalert(message_from_id, deviceID, message):
         
         # getWeatherAlertsNOAA returns (alerts, count) on success; everything else
         # (NO_ALERTS / ERROR_FETCHING_DATA / NO_DATA_NOGPS and the detail path) is a
-        # plain string — indexing a string sent users a single character (#324)
+        # plain string — indexing a string sent users a single character (#324;
+        # upstream adopted the guard in v1.9.9.9, comment kept fork-side)
         if isinstance(weatherAlert, tuple):
             weatherAlert = weatherAlert[0]
         return weatherAlert
@@ -1385,7 +1412,7 @@ def handle_wxc(message_from_id, deviceID, cmd, days=None, vox=False):
 def handle_emergency_alerts(message, message_from_id, deviceID):
     location = get_node_location(message_from_id, deviceID)
     if my_settings.enableDEalerts:
-        # nina Alerts
+        # bund/nina Alerts
         return get_nina_alerts()
     if message.lower().startswith("ealert"):
         # Detailed alert FEMA
@@ -1791,14 +1818,12 @@ def handle_boot(mesh=True):
                 logger.debug("System: File Monitor Bible Verse Enabled for bible.txt")
             if my_settings.usAlerts:
                 logger.debug(f"System: Emergency Alert Broadcast Enabled on channel {my_settings.emergency_responder_alert_channel} for interface {my_settings.emergency_responder_alert_interface}")
-            if my_settings.enableDEalerts:
-                logger.debug(f"System: NINA Alerts Enabled with counties {my_settings.myRegionalKeysDE}")
             if my_settings.volcanoAlertBroadcastEnabled:
                 logger.debug(f"System: Volcano Alert Broadcast Enabled on channels {my_settings.emergency_responder_alert_channel} ignoreUSGSWords {my_settings.ignoreUSGSWords}")
             if my_settings.ipawsAlertEnabled:
                 logger.debug(f"System: iPAWS Alerts Enabled with FIPS codes {my_settings.myStateFIPSList} ignorelist {my_settings.ignoreFEMAwords}")
             if my_settings.enableDEalerts:
-                logger.debug(f"System: NINA Alerts Enabled with counties {my_settings.myRegionalKeysDE}")
+                logger.debug(f"System: DE-Bund Alerts Enabled with counties {my_settings.myRegionalKeysDE}")
             if my_settings.wxAlertBroadcastEnabled:
                 logger.debug(f"System: Weather Alert Broadcast Enabled on channels {my_settings.emergency_responder_alert_channel} ignoreEASwords {my_settings.ignoreEASwords}")
             if my_settings.emergency_responder_enabled:

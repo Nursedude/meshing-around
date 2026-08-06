@@ -140,6 +140,8 @@ Use `ping?` in DM for a quick help message on all ping options.
 | `echo` | Echo string back, disabled by default | ✅ |
 | `bannode` | Admin option to prevent a node from using bot. `bannode list` will load and use the data/bbs_ban_list.txt db | ✅ |
 
+
+- **Command Lockdown**: Admins can use `cmd stop` to lock out non-admin commands, and `cmd start` to restore normal command access. Non-admins may still use `cmd` to view help.
 ---
 
 ## Games
@@ -594,7 +596,7 @@ Just say "Hey Chirpy..." followed by one of the supported commands:
 | `satellite`   | Returns satellite pass info                 |
 
 Enable and configure VOX features in the `[vox]` section of `config.ini`.
-
+To use VOX detection please install vosk [radio.md](modules/radio.md) for more
 ---
 
 ## Ollama LLM/AI

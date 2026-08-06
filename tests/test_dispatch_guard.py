@@ -12,11 +12,15 @@ from conftest import load_function, parsed_source
 
 class _FakeSettings:
     cmdBang = False
+    bbs_admin_list = []
 
 
 def _make_namespace(handlers):
     """Stub globals for exec'ing auto_response outside mesh_bot.py."""
     namespace = {
+        # v1.9.9.9 command-lockdown global read by auto_response; the exec
+        # namespace must mirror every module global the target reads.
+        "blackhole_mode": False,
         "my_settings": _FakeSettings(),
         "logger": logging.getLogger("test-dispatch"),
         "time": time,

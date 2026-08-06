@@ -1,6 +1,6 @@
 # Mesh Bot for Network Testing and BBS Activities
 
-Mesh Bot is a feature-rich Python bot designed to enhance your [Meshtastic](https://meshtastic.org/docs/introduction/) network experience. It provides powerful tools for network testing, messaging, games, and more—all via text-based message delivery. Whether you want to test your mesh, send messages, or play games, [mesh_bot.py](mesh_bot.py) has you covered.
+Mesh Bot is a feature-rich Python bot designed to enhance your [Meshtastic](https://meshtastic.org/docs/introduction/) network experience. It provides powerful tools for network testing, messaging, games, and more! All via text-based message delivery. Whether you want to test your mesh, send messages, or play games, [mesh_bot.py](mesh_bot.py) has you covered.
 
 * [Getting Started](#getting-started)
 
@@ -51,14 +51,14 @@ Mesh Bot is a feature-rich Python bot designed to enhance your [Meshtastic](http
 - **Location-Based Alerts**: Get notified when members arrive at a configured latitude/longitude—ideal for campsites, geo-fences, or remote locations. Optionally, trigger scripts, send emails, or automate actions (e.g., change node config, turn on lights, or drop an `alert.txt` file to start a survey or game).
 - **Customizable Triggers**: Use proximity events for creative applications like "king of the hill" or 🧭 geocache games by adjusting the alert cycle.
 - **High Flying Alerts**: Receive notifications when nodes with high altitude are detected on the mesh.
-- **Voice/Command Triggers**: Activate bot functions using keywords or voice commands (see [Voice Commands](#voice-commands-vox) for "Hey Chirpy!" support).
+- **Voice/Command Triggers**: Activate bot functions using keywords or voice commands (see [Voice Commands](modules/README.md#voice-commands-vox) for "Hey Chirpy!" support).
 - **YOLOv5 alerts**: Use camera modules to detect objects or OCR
 
 ### EAS Alerts
 - **FEMA iPAWS/EAS Alerts**: Receive Emergency Alerts from FEMA via API on internet-connected nodes.
 - **NOAA EAS Alerts**: Get Emergency Alerts from NOAA via API.
 - **USGS Volcano Alerts**: Receive volcano alerts from USGS via API.
-- **NINA Alerts (Germany)**: Receive emergency alerts from the xrepository.de feed for Germany.
+- **Bund-Warnmeldung (Deutschland)**: Receive emergency alerts from warnung.bund.de feed for Germany.
 - **Offline EAS Alerts**: Report EAS alerts over the mesh using external tools, even without internet.
 
 ### File Monitor Alerts
@@ -101,8 +101,10 @@ Advanced check-in/check-out and asset tracking for people and equipment—ideal 
 ### Robust Message Handling
 - **Automatic Message Chunking**: Messages over 160 characters are automatically split to ensure reliable delivery across multiple hops.
 
+- **Command Lockdown**: Admins can use `cmd stop` to lock out non-admin commands, and `cmd start` to restore normal command access. Non-admins may still use `cmd` to view help.
+
 ## Getting Started
-This project is developed on Linux (specifically a Raspberry Pi) but should work on any platform where the [Meshtastic protobuf API](https://meshtastic.org/docs/software/python/cli/) modules are supported, and with any compatible [Meshtastic](https://meshtastic.org/docs/getting-started/) hardware, however it is **recomended to use the latest firmware code**. For low-powered devices [mPWRD-OS](https://github.com/SpudGunMan/mPWRD-OS) for running on luckfox hardware. If you need a local console consider the [firefly](https://github.com/pdxlocations/firefly) project. 
+This project is developed on Linux (specifically a Raspberry Pi) but should work on any platform where the [Meshtastic protobuf API](https://meshtastic.org/docs/software/python/cli/) modules are supported, and with any compatible [Meshtastic](https://meshtastic.org/docs/getting-started/) hardware, however it is **recomended to use the latest firmware code**. For low-powered devices [mPWRD-OS](https://github.com/SpudGunMan/mPWRD-OS-dev-kit) for running on luckfox hardware. If you need a local console consider the [firefly](https://github.com/pdxlocations/firefly) project. 
 
 🥔 Please use responsibly and follow local rulings for such equipment. This project captures packets, logs them, and handles over the air communications which can include PII such as GPS locations.
 
