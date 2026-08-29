@@ -172,9 +172,13 @@ def handle_ping(message_from_id, deviceID,  message, hop, snr, rssi, isDM, chann
             else:
                 msg = f"🚦Initalizing {pingCount} auto-ping"
 
-    # if not a DM add the username to the beginning of msg
+    # if not a DM append the username to the END of msg — a LEADING "@name "
+    # is the MeshForge/MeshAnchor gateway DM-reply trigger, so bot replies
+    # with a leading mention collide with the bridge (guaranteed-miss DM +
+    # a ✗ notice per ack; observed live 2026-08-29). Trailing keeps the
+    # attribution readable and can never trigger the DM leg.
     if not my_settings.useDMForResponse and not isDM:
-        msg = "@" + get_name_from_number(message_from_id, 'short', deviceID) + " " + msg
+        msg = msg + " @" + get_name_from_number(message_from_id, 'short', deviceID)
             
     return msg
 
@@ -214,7 +218,7 @@ def handle_echo(message, message_from_id, deviceID, isDM, channel_number):
         if len(parts) > 1 and parts[1].strip() != "":
             echo_msg = parts[1]
             if channel_number != my_settings.echoChannel:
-                echo_msg = "@" + get_name_from_number(message_from_id, 'short', deviceID) + " " + echo_msg
+                echo_msg = echo_msg + " @" + get_name_from_number(message_from_id, 'short', deviceID)
             return echo_msg
         else:
             return "Please provide a message to echo back to you. Example:echo Hello World"
