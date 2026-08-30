@@ -1937,6 +1937,17 @@ def _meshforge_reply_is_dup(original_text, command, channel, from_id):
     return False
 
 
+def _meshforge_is_machinery_ack(message_string):
+    # MeshForge: bridge instrumentation, not a user. The rescanary's relayed
+    # delivery receipts ('[RNS:xxxx] ACK seq=NNN orig=rescanary-...') lead
+    # with the trap word 'ACK' once the bridge tag is stripped, so the bot
+    # answered fleet machinery with ACK-ACK — one wasted RF slot plus one
+    # junk LXMF message per canary fire (observed lehua 2026-08-29). Match
+    # the machine shape ('ACK seq=<n> orig=' in order), never a human 'ack'.
+    import re as _re
+    return bool(_re.search(r'\bACK seq=\d+ orig=', message_string or ''))
+
+
 def onReceive(packet, interface):
     global seenNodes, msg_history, cmdHistory
     # Priocess the incoming packet, handles the responses to the packet with auto_response()
@@ -2279,6 +2290,9 @@ def onReceive(packet, interface):
                         logger.debug(f"System: Ignoring CMD:{message_log_string} From: {get_name_from_number(message_from_id, 'short', rxNode)} Cantankerous Node")
                     elif str(channel_number) in my_settings.ignoreChannels:
                         logger.debug(f"System: Ignoring CMD:{message_log_string} From: {get_name_from_number(message_from_id, 'short', rxNode)} Ignored Channel:{channel_number}")
+                    elif _meshforge_is_machinery_ack(message_string):
+                        # keep at INFO: the ignore IS the witness that the guard fired
+                        logger.info(f"Device:{rxNode} Channel:{channel_number} MeshForge: ignoring bridge-machinery ACK From: {get_name_from_number(message_from_id, 'short', rxNode)}")
                     elif my_settings.cmdBang and not message_string.startswith("!"):
                         logger.debug(f"System: Ignoring CMD:{message_log_string} From: {get_name_from_number(message_from_id, 'short', rxNode)} Didnt sound like they meant it")
                     else:
