@@ -640,11 +640,60 @@ def get_node_list(nodeInt=1):
     
     return node_list
 
+# A node with no GPS fix does not reliably send `None` — it sends a FILL
+# VALUE, and every fill value below passes an `is not None` check while
+# landing inside the valid latitude/longitude domain.
+#
+# Measured live 2026-09-01: a node reported (0.2097152, 0.2097152) — that is
+# latitude_i == longitude_i == 2**21 in Meshtastic's 1e-7-degree integers, an
+# uninitialised register, not a place. It sailed through the old
+# `is not None` guard, so `wx`/`wxa` asked NOAA about a point in the Gulf of
+# Guinea, got HTTP 404, and answered "error fetching data" to that node's
+# owner — while the configured fallback location a few lines below would have
+# answered correctly the whole time.
+NULL_ISLAND_DEG = 0.5   # ~55 km box around (0, 0): open ocean, no mesh node
+
+
+def position_is_plausible(latitude, longitude):
+    """True when (latitude, longitude) could be a real fix.
+
+    Rejecting is the SAFE direction here: the caller falls back to the
+    configured location, which is a worse answer than a real fix but a far
+    better one than a confident wrong place. Accepting a fill value is not
+    safe — it is indistinguishable from a measurement to everything
+    downstream.
+
+    Rejected:
+      * non-numeric / NaN
+      * outside the valid lat/lon ranges
+      * inside the null-island box — the classic no-fix encoding
+      * latitude exactly equal to longitude — a fill pattern, not a place.
+        Two independent GPS axes do not agree to full float precision; the
+        cost of a false reject is falling back to the configured location.
+    """
+    try:
+        lat = float(latitude)
+        lon = float(longitude)
+    except (TypeError, ValueError):
+        return False
+    if lat != lat or lon != lon:            # NaN
+        return False
+    if not (-90.0 <= lat <= 90.0) or not (-180.0 <= lon <= 180.0):
+        return False
+    if abs(lat) < NULL_ISLAND_DEG and abs(lon) < NULL_ISLAND_DEG:
+        return False
+    if lat == lon:
+        return False
+    return True
+
+
 def get_node_location(nodeID, nodeInt=1, channel=0, round_digits=2):
     """
     Returns [latitude, longitude] for a node.
     - Always returns a fuzzed (rounded) config location as fallback.
     - returns their actual position if available, else fuzzed config location.
+    - a position that cannot be a real fix (see position_is_plausible) is
+      REFUSED and falls through to the config location, loudly.
     """
     interface = globals()[f'interface{nodeInt}']
 
@@ -661,6 +710,16 @@ def get_node_location(nodeID, nodeInt=1, channel=0, round_digits=2):
                     and pos.get('latitude') is not None
                     and pos.get('longitude') is not None
                 ):
+                    if not position_is_plausible(pos['latitude'], pos['longitude']):
+                        # WARNING, not debug: this is why a weather/tide answer
+                        # is about the config location instead of the asker's,
+                        # and the reason has to be findable in the log.
+                        logger.warning(
+                            f"System: Implausible position for node {nodeID} "
+                            f"({pos.get('latitude')}, {pos.get('longitude')}) — "
+                            f"treating as NO FIX and using the config location"
+                        )
+                        break
                     try:
                         # Got a valid position
                         latitude = pos['latitude']
