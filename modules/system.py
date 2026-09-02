@@ -955,8 +955,16 @@ def send_message(message, ch, nodeid=0, nodeInt=1, bypassChuncking=False, reply_
             # Send the message to the channel or DM
             total_length = sum(len(chunk) for chunk in message_list)
             num_chunks = len(message_list)
-            for m in message_list:
-                chunkOf = f"{message_list.index(m)+1}/{num_chunks}"
+            # enumerate, NOT message_list.index(m): .index() returns the
+            # position of the first element EQUAL to m, so two chunks with
+            # identical text both report the earlier one's number. Observed
+            # live 2026-09-01 on a 5-chunk forecast whose 2nd and 4th chunks
+            # were both "0.1-0.25in." — the log read 1/5 2/5 3/5 2/5 5/5, with
+            # no 4/5. The mislabel is cosmetic; the SAME lookup drives the
+            # throttle below, and there it silently skipped a sleep that
+            # exists to avoid spamming the radio.
+            for position, m in enumerate(message_list, start=1):
+                chunkOf = f"{position}/{num_chunks}"
                 if nodeid == 0:
                     # Send to channel
                     if wantAck:
@@ -976,10 +984,13 @@ def send_message(message, ch, nodeid=0, nodeInt=1, bypassChuncking=False, reply_
                                     " To: " + CustomFormatter.white + f"{get_name_from_number(nodeid, 'long', nodeInt)}")
                         _send_with_reply(text=m, channelIndex=ch, destinationId=nodeid)
 
-                # Throttle the message sending to prevent spamming the device
-                if (message_list.index(m)+1) % 4 == 0:
+                # Throttle the message sending to prevent spamming the device.
+                # Same enumerate fix: duplicate chunk text used to make this
+                # test the WRONG position, so a needed sleep could be skipped
+                # entirely (the 4th chunk above resolved to index 1 -> 2 % 4).
+                if position % 4 == 0:
                     time.sleep(responseDelay + 1)
-                    if (message_list.index(m)+1) % 5 == 0:
+                    if position % 5 == 0:
                         logger.warning(f"System: throttling rate Interface{nodeInt} on {chunkOf}")
 
                 # wait an amount of time between sending each split message
