@@ -65,12 +65,12 @@ def _get_node_location(position, *, lat=19.6227, lon=-155.0374, logger=None):
         "fuzz_config_location": False,
         "fuzzItAll": False,
         "logger": logger or logging.getLogger("test.system"),
-        "interface1": _Iface({"a": {"num": 1192426575, "position": position}}),
+        "interface1": _Iface({"a": {"num": 1192320591, "position": position}}),  # !47115e4f
     }
     ns["NULL_ISLAND_DEG"] = NULL_ISLAND_DEG
     ns["position_is_plausible"] = _plausible()
     fn = load_function(SRC, "get_node_location", ns)
-    return fn(1192426575, 1)
+    return fn(1192320591, 1)
 
 
 class TestPositionIsPlausible:
