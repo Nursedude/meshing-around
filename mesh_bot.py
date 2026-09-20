@@ -16,7 +16,8 @@ import modules.settings as my_settings
 from modules.system import *
 
 # list of commands to remove from the default list for DM only
-restrictedCommands = ["blackjack", "videopoker", "dopewars", "lemonstand", "golfsim", "mastermind", "hangman", "hamtest", "tictactoe", "tic-tac-toe", "quiz", "q:", "survey", "s:", "battleship"]
+restrictedCommands = ["blackjack", "videopoker", "dopewars", "lemonstand", "golfsim", "mastermind", "hangman", "hamtest", "tictactoe", "tic-tac-toe", "quiz", "q:", "survey", "s:", "battleship", "spudgun", "spudgunner", "lunarlander", "football"]
+
 restrictedResponse = "🤖only available in a Direct Message📵" # "" for none
 blackhole_mode = False
 
@@ -60,6 +61,7 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
     "ealert": lambda: handle_emergency_alerts(message, message_from_id, deviceID),
     "earthquake": lambda: handleEarthquake(message, message_from_id, deviceID),
     "email:": lambda: handle_email(message_from_id, message),
+    "football": lambda: handleFootball(message, message_from_id, deviceID),
     "games": lambda: gamesCmdList,
     "globalthermonuclearwar": lambda: handle_gTnW(),
     "golfsim": lambda: handleGolf(message, message_from_id, deviceID),
@@ -90,6 +92,7 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
     "leaderboard": lambda: get_mesh_leaderboard(message, message_from_id, deviceID),
     "lemonstand": lambda: handleLemonade(message, message_from_id, deviceID),
     "lheard": lambda: handle_lheard(message, message_from_id, deviceID, isDM),
+    "lunarlander": lambda: handleLunarLander(message, message_from_id, deviceID),
     "map": lambda: mapHandler(message_from_id, deviceID, channel_number, message, snr, rssi, hop),
     "mastermind": lambda: handleMmind(message, message_from_id, deviceID),
     "messages": lambda: handle_messages(message, deviceID, channel_number, msg_history, publicChannel, isDM),
@@ -111,6 +114,8 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
     "sitrep": lambda: handle_lheard(message, message_from_id, deviceID, isDM),
     "sms:": lambda: handle_sms(message_from_id, message),
     "solar": lambda: drap_xray_conditions() + "\n" + solar_conditions() + "\n" + get_noaa_scales_summary(),
+    "spudgun": lambda: handlePotatoGunner(message, message_from_id, deviceID),
+    "spudgunner": lambda: handlePotatoGunner(message, message_from_id, deviceID),
     "sun": lambda: handle_sun(message_from_id, deviceID, channel_number),
     "survey": lambda: surveyHandler(message, message_from_id, deviceID),
     "s:": lambda: surveyHandler(message, message_from_id, deviceID),
@@ -123,6 +128,7 @@ def auto_response(message, snr, rssi, hop, pkiStatus, message_from_id, channel_n
     "valert": lambda: get_volcano_usgs(),
     "verse": lambda: read_verse(),
     "videopoker": lambda: handleVideoPoker(message, message_from_id, deviceID),
+    "weekday": lambda: weekdayHandler(message, message_from_id, deviceID),
     "whereami": lambda: handle_whereami(message_from_id, deviceID, channel_number),
     "whoami": lambda: handle_whoami(message_from_id, deviceID, hop, snr, rssi, pkiStatus),
     "whois": lambda: handle_whois(message, deviceID, channel_number, message_from_id),
@@ -511,9 +517,9 @@ def handle_wxalert(message_from_id, deviceID, message):
         location = get_node_location(message_from_id, deviceID)
         if "wxalert" in message:
             # Detailed weather alert
-            weatherAlert = getActiveWeatherAlertsDetailNOAA(str(location[0]), str(location[1]))
+            weatherAlert = getActiveWeatherAlertsDetailNOAA(location[0], location[1])
         else:
-            weatherAlert = getWeatherAlertsNOAA(str(location[0]), str(location[1]))
+            weatherAlert = getWeatherAlertsNOAA(location[0], location[1])
         
         # getWeatherAlertsNOAA returns (alerts, count) on success; everything else
         # (NO_ALERTS / ERROR_FETCHING_DATA / NO_DATA_NOGPS and the detail path) is a
@@ -669,7 +675,7 @@ def handle_satpass(message_from_id, deviceID, message='', vox=False):
 
     # Detailed satellite pass
     for bird in satList:
-        satPass = getNextSatellitePass(bird, str(location[0]), str(location[1]))
+        satPass = getNextSatellitePass(bird, location[0], location[1])
         if satPass:
             # append to passes
             passes = passes + satPass + "\n"
@@ -694,7 +700,7 @@ def handle_llm(message_from_id, channel_number, deviceID, message, publicChannel
                 break
         else:
             location = get_node_location(message_from_id, deviceID)
-            location_name = where_am_i(str(location[0]), str(location[1]), short = True)
+            location_name = where_am_i(location[0], location[1], short = True)
 
     if my_settings.NO_DATA_NOGPS in location_name:
         location_name = "no location provided"
@@ -901,6 +907,7 @@ def handleBlackJack(message, nodeID, deviceID):
         highScore = loadHSJack()
         if highScore and highScore.get('nodeID', 0) != 0:
             nodeName = get_name_from_number(highScore['nodeID'])
+            # NOTE: Multiple interface support limitation - numeric node names may not display correctly
             if nodeName.isnumeric() and multiple_interface:
                 logger.debug(f"System: TODO is multiple interface fix mention this please nodeName: {nodeName}")
             msg += f" HighScore🥇{nodeName} with {highScore['highScore']} chips. "
@@ -952,6 +959,7 @@ def handleVideoPoker(message, nodeID, deviceID):
         highScore = loadHSVp()
         if highScore and highScore.get('nodeID', 0) != 0:
             nodeName = get_name_from_number(highScore['nodeID'])
+            # NOTE: Multiple interface support limitation - numeric node names may not display correctly
             if nodeName.isnumeric() and multiple_interface:
                 logger.debug(f"System: TODO is multiple interface fix mention this please nodeName: {nodeName}")
             msg += f" HighScore🥇{nodeName} with {highScore['highScore']} coins. "
@@ -1152,6 +1160,120 @@ def handleTicTacToe(message, nodeID, deviceID):
     return msg
 
 
+def handleFootball(message, nodeID, deviceID):
+    """Handle Football game commands.
+    
+    User vs Bot football game with natural language commands.
+    """
+    global footballTracker
+    
+    msg_lower = message.lower().strip()
+    tracker_entry = next((entry for entry in footballTracker if entry['nodeID'] == nodeID), None)
+    
+    # End/exit command
+    if msg_lower.startswith('end') or msg_lower.startswith('exit') or msg_lower.startswith('quit'):
+        if tracker_entry:
+            footballTracker.remove(tracker_entry)
+        return "Thanks for playing Football! 🏈"
+    
+    # New game command
+    if msg_lower.startswith('new') or not tracker_entry:
+        if not tracker_entry:
+            footballTracker.append({
+                "nodeID": nodeID,
+                "last_played": time.time(),
+            })
+        msg = football.new_game(nodeID, winning_score=20)
+        return msg
+    
+    # Update last played time
+    if tracker_entry:
+        tracker_entry["last_played"] = time.time()
+    
+    # Play command
+    msg = football.play(nodeID, message)
+    return msg
+
+def handleLunarLander(message, nodeID, deviceID):
+    global lunarlanderTracker
+    from modules.settings import use_metric
+    
+    # Strip command prefix from message (case-insensitive, start-only)
+    msg = message.strip()
+    if msg.lower().startswith("lunarlander"):
+        user_input = msg[len("lunarlander"):].strip()
+    else:
+        user_input = msg
+    
+    tracker_entry = next((entry for entry in lunarlanderTracker if entry['nodeID'] == nodeID), None)
+    
+    # Create new game if not found
+    if not tracker_entry:
+        game_state, welcome_msg = lunarlander.new_game()
+        lunarlanderTracker.append({
+            "nodeID": nodeID,
+            "last_played": time.time(),
+            "game_state": game_state,
+            "result": None
+        })
+        # If user sent something besides just the command, process it as first burn rate
+        if user_input:
+            updated_state, response, game_ended = lunarlander.play(game_state, user_input, use_metric)
+            lunarlanderTracker[-1]["game_state"] = updated_state
+            if game_ended:
+                lunarlanderTracker.pop()
+            return response
+        return welcome_msg
+    
+    # Update last played
+    tracker_entry["last_played"] = time.time()
+    
+    # Handle end/exit command for active game
+    if user_input.lower() in ('e', 'end', 'exit', 'quit'):
+        lunarlanderTracker.remove(tracker_entry)
+        return "🚀 Thanks for landing! Type 'lunarlander' to play again."
+    
+    # Process player input
+    game_state = tracker_entry.get("game_state", {})
+    updated_state, response, game_ended = lunarlander.play(game_state, user_input, use_metric)
+    
+    # Save updated state
+    tracker_entry["game_state"] = updated_state
+    tracker_entry["result"] = response if game_ended else None
+    
+    # Remove from tracker if game ended
+    if game_ended:
+        lunarlanderTracker.remove(tracker_entry)
+    
+    return response
+def handlePotatoGunner(message, nodeID, deviceID):
+    global potatogunnerTracker
+
+    tracker_entry = next((entry for entry in potatogunnerTracker if entry['nodeID'] == nodeID), None)
+
+    # Handle end/exit command
+    if message.lower().startswith('e'):
+        if tracker_entry:
+            potatogunner.end(nodeID)
+            potatogunnerTracker.remove(tracker_entry)
+        return "🥔 Thanks for playing! 🥔"
+
+    # If not found, create new tracker entry
+    if not tracker_entry:
+        potatogunnerTracker.append({
+            "nodeID": nodeID,
+            "last_played": time.time()
+        })
+        msg = "🥔 POTATO GUNNER 🥔 Let's plant some spuds!\n"
+        msg += potatogunner.new_game(nodeID)
+        return msg
+    else:
+        tracker_entry["last_played"] = time.time()
+
+    msg = potatogunner.play(nodeID, message)
+    return msg
+
+
 def handleBattleship(message, nodeID, deviceID):
     global battleshipTracker
     from modules.games import battleship
@@ -1306,7 +1428,7 @@ def quizHandler(message, nodeID, deviceID):
             msg = quizGamePlayer.answer(user_id, user_answer)
 
         # set username on top 3
-        if "🏆 Top" in msg:
+        if isinstance(msg, str) and "🏆 Top" in msg:
             #replace all the 10 digit numbers with the short name
             for part in msg.split():
                 part = part.rstrip(":")
@@ -1409,16 +1531,16 @@ def handle_wxc(message_from_id, deviceID, cmd, days=None, vox=False):
     location = get_node_location(message_from_id, deviceID)
     if my_settings.use_meteo_wxApi and not "wxc" in cmd and not use_metric:
         #logger.debug("System: Bot Returning Open-Meteo API for weather imperial")
-        weather = get_wx_meteo(str(location[0]), str(location[1]))
+        weather = get_wx_meteo(location[0], location[1])
     elif my_settings.use_meteo_wxApi:
         #logger.debug("System: Bot Returning Open-Meteo API for weather metric")
-        weather = get_wx_meteo(str(location[0]), str(location[1]), 1)
+        weather = get_wx_meteo(location[0], location[1], 1)
     elif not my_settings.use_meteo_wxApi and "wxc" in cmd or my_settings.use_metric:
         #logger.debug("System: Bot Returning NOAA API for weather metric")
-        weather = get_NOAAweather(str(location[0]), str(location[1]), 1, report_days=days)
+        weather = get_NOAAweather(location[0], location[1], 1, report_days=days)
     else:
         #logger.debug("System: Bot Returning NOAA API for weather imperial")
-        weather = get_NOAAweather(str(location[0]), str(location[1]), report_days=days)
+        weather = get_NOAAweather(location[0], location[1], report_days=days)
     return weather
 
 def handle_emergency_alerts(message, message_from_id, deviceID):
@@ -1428,15 +1550,15 @@ def handle_emergency_alerts(message, message_from_id, deviceID):
         return get_nina_alerts()
     if message.lower().startswith("ealert"):
         # Detailed alert FEMA
-        return getIpawsAlert(str(location[0]), str(location[1]))
+        return getIpawsAlert(location[0], location[1])
     else:
         # Headlines only FEMA
-        return getIpawsAlert(str(location[0]), str(location[1]), shortAlerts=True)
+        return getIpawsAlert(location[0], location[1], shortAlerts=True)
 
 def handleEarthquake(message, message_from_id, deviceID):
     location = get_node_location(message_from_id, deviceID)
     if "earthquake" in message.lower():
-        return checkUSGSEarthQuake(str(location[0]), str(location[1]))
+        return checkUSGSEarthQuake(location[0], location[1])
     
 def handle_checklist(message, message_from_id, deviceID):
     name = get_name_from_number(message_from_id, 'short', deviceID)
@@ -1545,9 +1667,9 @@ def handle_messages(message, deviceID, channel_number, msg_history, publicChanne
 def handle_sun(message_from_id, deviceID, channel_number, vox=False):
     if vox:
         # return a default message if vox is enabled
-        return get_sun(str(my_settings.latitudeValue), str(my_settings.longitudeValue))
+        return get_sun(my_settings.latitudeValue, my_settings.longitudeValue)
     location = get_node_location(message_from_id, deviceID, channel_number)
-    return get_sun(str(location[0]), str(location[1]))
+    return get_sun(location[0], location[1])
 
 def sysinfo(message, message_from_id, deviceID, isDM):
     if "?" in message:
@@ -1654,7 +1776,7 @@ def handle_whereami(message_from_id, deviceID, channel_number):
     check_throttle = api_throttle(message_from_id, deviceID, apiName='whereami')
     if check_throttle:
         return check_throttle
-    return where_am_i(str(location[0]), str(location[1]))
+    return where_am_i(location[0], location[1])
 
 def handle_repeaterQuery(message_from_id, deviceID, channel_number):
     location = get_node_location(message_from_id, deviceID, channel_number)
@@ -1663,23 +1785,23 @@ def handle_repeaterQuery(message_from_id, deviceID, channel_number):
     if check_throttle:
         return check_throttle
     if repeater_lookup == "rbook":
-        return getRepeaterBook(str(location[0]), str(location[1]))
+        return getRepeaterBook(location[0], location[1])
     elif repeater_lookup == "artsci":
-        return getArtSciRepeaters(str(location[0]), str(location[1]))
+        return getArtSciRepeaters(location[0], location[1])
     else:
         return "Repeater lookup not enabled"
 
 def handle_tide(message_from_id, deviceID, channel_number, vox=False):
     if vox:
-        return get_NOAAtide(str(my_settings.latitudeValue), str(my_settings.longitudeValue))
+        return get_NOAAtide(my_settings.latitudeValue, my_settings.longitudeValue)
     location = get_node_location(message_from_id, deviceID, channel_number)
-    return get_NOAAtide(str(location[0]), str(location[1]))
+    return get_NOAAtide(location[0], location[1])
 
 def handle_moon(message_from_id, deviceID, channel_number, vox=False):
     if vox:
-        return get_moon(str(my_settings.latitudeValue), str(my_settings.longitudeValue))
+        return get_moon(my_settings.latitudeValue, my_settings.longitudeValue)
     location = get_node_location(message_from_id, deviceID, channel_number)
-    return get_moon(str(location[0]), str(location[1]))
+    return get_moon(location[0], location[1])
 
 def handle_whoami(message_from_id, deviceID, hop, snr, rssi, pkiStatus):
     try:
@@ -1742,7 +1864,7 @@ def handle_whois(message, deviceID, channel_number, message_from_id):
                 msg += f"Ch: {seenNodes[i]['channel']}, Int: {seenNodes[i]['rxInterface']}"
                 msg += f"Lat: {location[0]}, Lon: {location[1]}\n"
                 if location != [my_settings.latitudeValue, my_settings.longitudeValue]:
-                    msg += f"Loc: {where_am_i(str(location[0]), str(location[1]))}"
+                    msg += f"Loc: {where_am_i(location[0], location[1])}"
         return msg
 
 def handle_boot(mesh=True):
@@ -2429,8 +2551,11 @@ gameTrackers = [
     (hangmanTracker, "Hangman", handleHangman),
     (hamtestTracker, "HamTest", handleHamtest),
     (tictactoeTracker, "TicTacToe", handleTicTacToe),
+    (lunarlanderTracker, "LunarLander", handleLunarLander),
     (surveyTracker, "Survey", surveyHandler),
     (battleshipTracker, "Battleship", handleBattleship),
+    (footballTracker, "Football", handleFootball),
+    (potatogunnerTracker, "PotatoGunner", handlePotatoGunner),
     # quiz does not use a tracker (quizGamePlayer) always active
 ]
 

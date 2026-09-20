@@ -2,6 +2,7 @@
 
 ## Game Index
 
+- [Lunar Lander](#lunar-lander-game-module)
 - [Blackjack](#blackjack-game-module)
 - [DopeWars](#dopewars-game-module)
 - [GolfSim](#golfsim-game-module)
@@ -9,6 +10,8 @@
 - [Tic-Tac-Toe (2D/3D)](#tic-tac-toe-game-module)
 - [MasterMind](#mastermind-game-module)
 - [Battleship](#battleship-game-module)
+- [Football](#football-game-module)
+- [Potato Gunner](#potato-gunner-game-module)
 - [Video Poker](#video-poker-game-module)
 - [Hangman](#hangman-game-module)
 - [Quiz](#quiz-game-module)
@@ -16,6 +19,120 @@
 - [Word of the Day Game](#word-of-the-day-game--rules--features)
 - [Game Server](#game-server-configuration-gameini)
 - [PyGame Help](#pygame-help)
+---
+
+
+# Lunar Lander Game Module
+
+A classic Apollo-style lunar landing simulation adapted for the Meshtastic mesh-bot. Land your capsule safely on the moon by managing fuel and engine temperature!
+
+## How to Play
+
+- **Start the Game:**  
+  Send the command `lunarlander` via DM to the bot to start a new mission.
+
+- **Landing Strategy:**  
+  You must carefully control your descent rate and manage fuel to achieve a safe landing.
+  - **Target landing velocity:** Less than 0.5 mph for a perfect landing
+  - **Safe landing:** Below 2 mph
+  - **Rough landing:** Below 30 mph (crew survives)
+  - **Crash:** 30-100 mph (crew likely injured)
+  - **Catastrophic failure:** 100+ mph (new crater! 💀)
+
+- **Controls:**  
+  Enter burn rate and optional duration on each turn.
+  - Format: `burn_rate [duration]`
+  - Burn rate: 0-200 lbs/sec (safe), higher = risky
+  - Duration: 1-30 seconds (default 10)
+  - Examples: `100`, `150 5`, `0`
+
+- **Fuel Management:**  
+  - Starting fuel varies (keeps games fresh!)
+  - Watch your remaining fuel time
+  - Free fall (0 lbs/sec burn) conserves fuel but increases impact risk
+  - High burn rate uses fuel fast but gives descent control
+
+
+## Commands
+
+| Command | Effect |
+|---------|--------|
+| `lunarlander` | Start a new game |
+| `help` or `?` or `h` | Show controls |
+| `quit` or `exit` or `end` | Abort mission |
+| `y` | Confirm risky high burn (>200 lbs/sec) |
+| `n` | Cancel risky burn |
+
+## Status Display
+
+During each turn you'll see:
+```
+⏱️ T+  120s | 🌍 45mi 2640ft | 📉  1200mph
+⛽ Fuel:  8500lbs | 🔥 120 lbs/s (70s left) | 🌡️ 65%
+🟠 WARNING: Engine temp rising - watch it!
+```
+
+## Tips for Winning
+
+1. **Early descents:** High initial velocity = more burn needed early
+2. **Fuel efficiency:** Low burns (≤100 lbs/sec) cool faster than they heat—sustainable for long periods
+3. **Engine management:** Higher burns (>300 lbs/sec) produce net heating; use sparingly and cool down between pulses
+4. **Thermal sweet spot:** Medium burns (100-200 lbs/sec) offer good balance of control and cooling
+5. **Aggressive burns:** 300+ lbs/sec causes rapid heating; only use in emergencies and monitor temp closely
+6. **Continuous cooling:** Engine cools even while burning, just slower at high burn rates—no need for full coasting
+7. **Final approach:** Use steady, moderate burn (50-100 lbs/sec) for precision landing with engine safety margin
+
+## Game State
+
+- Game state persists per player (tracked by node ID)
+- Game automatically expires after 8 hours of inactivity
+- Only one active mission per player
+- For best results, play via DM to avoid channel spam
+
+## Example Session
+
+```
+🚀 LUNAR LANDER 🚀
+Your onboard computer crashed (Boeing made it 😬)
+YOU must land this capsule manually!
+
+💡 Enter: burn_rate [duration_sec]
+📊 Examples: '100' (10s default) or '150 5'
+⏱️ Watch descent & fuel! Type 'help' for more
+
+⏱️ T+  10s | 🌍 125mi 4800ft | 📉  450mph
+⛽ Fuel: 16000lbs | 🎯 Descent rate: excellent
+
+→ Enter burn rate:
+```
+```
+100
+
+⏱️ T+  20s | 🌍 110mi 1200ft | 📉  850mph
+⛽ Fuel: 14000lbs | 🔥 100 lbs/s (140s left) | 🌡️ 25%
+✅ Descent rate: controlled
+
+→ Next burn rate:
+```
+```
+150 5
+
+👽 ALIENS! They gave us 800 lbs fuel! 💚
+
+⏱️ T+  25s | 🌍 85mi 3400ft | 📉  1200mph
+⛽ Fuel: 14800lbs | 🔥 150 lbs/s (98s left) | 🌡️ 47%
+⚡ Descent rate: steady, watch it
+
+→ Next burn rate:
+```
+
+## Credits
+
+- Classic Lunar Lander by Dave LeCompte (1979)
+- Ported to Meshtastic mesh-bot by K7MHI Kelly Keeton 2026
+- Physics engine: Euler method numerical integration
+- Original inspiration: NASA Apollo Lunar Module simulations
+
 ---
 
 
@@ -444,6 +561,121 @@ Would you like to play again? (N)ormal, (H)ard, or e(X)pert?
 - Ported from [pwdkramer/pythonMastermind](https://github.com/pwdkramer/pythonMastermind)
 - Adapted for Meshtastic mesh-bot by K7MHI Kelly Keeton 2024
 
+# Potato Gunner Game Module
+
+A silly, potato-themed artillery game for the Meshtastic mesh-bot. Fire spuds at moving targets, navigate wind and chaos events, and earn powerups to become the ultimate potato sharpshooter!
+
+## How to Play
+
+- **Start the Game:**  
+  Send the command `spudgun`, or `spudgunner` via DM to the bot to start a new tournament.
+
+- **Gameplay:**
+  Each round, you'll see the target distance and wind conditions. Enter an elevation angle (0-90°) AND hairspray PSI pressure (0-100) to control your shot's velocity.
+  - **Input format:** `angle,power` (e.g., `45,60` for 45° at 60 PSI)
+  - **Quick hints:** `low,50` | `mid,50` | `high,50` (uses default 50 PSI)
+  - **Backward compatible:** Just enter angle (e.g., `45`) for default 50 PSI
+  - **Power mechanics:**
+    - 10 PSI: Short range, easy to control
+    - 50 PSI: Medium range, balanced (default)
+    - 100 PSI: Maximum range, harder to control
+  - **Accuracy radius:** Shots within the accuracy range hit the target (base 150 yards)
+  - **Wind effects:** Wind can increase or decrease your effective distance
+  - **Chaos events:** Random silly events like earthquakes, meteor showers, alien invasions, and more make aiming tricky!
+
+- **Commands:**
+  - `<angle>,<power>` — Fire spud at that angle with that PSI power (e.g., `45,60`)
+  - `<angle>` — Fire at default 50 PSI (backward compatible, e.g., `45`)
+  - `low`, `mid`, `high` — Use quick elevation hints at 50 PSI
+  - `stats` — Display session statistics
+  - `new` — Advance to next round
+  - `e` — End tournament
+
+- **Scoring:**
+  - Base score: 100 points per hit
+  - Accuracy bonus: Up to +100 points (closer hits = more points)
+  - Streak bonus: +15 points for each consecutive hit
+  - Chaos survival bonus: +60 points for hitting during chaos events
+  - Round multiplier: Score multiplies by round number
+
+- **Powerups (Earned on Good Shots):**
+  - 🎯 **Accuracy ≥75%**: Homing Spud (auto-corrects aim by 15%)
+  - ⚡ **Accuracy ≥50%**: Super Spud (+60 yard accuracy radius)
+  - 🔥 **3+ hit streak**: Potato Shield (free miss, one-time use)
+  - 🍀 **Chaos survival**: Lucky Potato (auto-negates next chaos event)
+
+- **Difficulty Levels:**
+  - Target distance expands each round
+  - Wind intensity increases progressively
+  - Chaos events become more frequent and intense
+  - Round multiplier increases with score
+
+- **High Scores:**
+  The module tracks your best tournament score. Beat it to earn a "NEW HIGH SCORE!" message and lock in your achievement!
+
+- **Example Game Flow:**
+
+```
+🥔 **Welcome to POTATO GUNNER!** 🥔
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏆 **High Score: 1250 pts** 🏆
+
+🥔 **ROUND 1 - POTATO ARTILLERY RANGE** 🥔
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 **Target Distance:** ~28425yd
+💨 **Wind:** +3yd (slight breeze)
+🌪️ **Difficulty:** GENTLE
+
+> 45
+
+🎯 **Target Distance:** ~28425yd
+💨 **Wind:** +3yd (slight breeze)
+🌪️ **Difficulty:** GENTLE
+
+> 45,60
+
+💣 SPUD FIRED AT 45.0° with 60 PSI
+Velocity: 120m/s | Wind effect: +2yd
+**Actual distance: 28510yd** | Target: 28425yd
+Spread: 85yd (hit zone: ±150yd)
+
+✅ **HIT!** 🎯
+Excellent accuracy! +165 pts earned!
+
+📊 Session: 165 pts | Accuracy: 1/1 (100%)
+Type 'new' for next round or 'e' to end:
+```
+
+## Notes
+
+- Single session per player (new game cancels previous session)
+- Game sessions can span multiple rounds (10+ recommended for full experience)
+- Each round becomes progressively harder with increased distance and wind
+- Power affects velocity: higher PSI = longer range, more damage potential
+- Chaos events add fun disruption - sometimes hitting during chaos is worth more!
+- Play via DM for best experience and to avoid interference with other players
+- High scores are stored persistently in `data/potatogunner_hs.pkl`
+
+## Tips for Success
+
+- Start with medium power (50 PSI) for balanced range, adjust based on target distance
+- Use low power (10-30 PSI) for close targets or high precision needs
+- Use high power (70-100 PSI) for distant targets or when you need maximum range
+- Watch the wind direction and adjust your aim accordingly
+- Land consecutive hits to build streaks and earn powerups
+- Use Lucky Potato to negate difficult chaos events
+- Push for high accuracy (75%+) to earn the "SHARPSHOOTER" rating
+- Experiment with power/angle combinations to find what works best!
+
+## Chaos Events (12 types)
+
+Wind Gust, Earthquake, Rain Storm, Meteor Shower, Alien Invasion, Mischievous Squirrel, Bird Swarm, Angry Farmer, Gravity Flip, Inverse Wind, Ricochet Zone, Slow Motion — each with escalating intensity as you progress!
+
+## Credits
+
+- Based on the classic [Gunner Artillery Game](https://github.com/coding-horror/basic-computer-games/blob/main/42_Gunner/python/gunner.py)
+- Adapted and enhanced with chaos system, powerups, and potato theming for Meshtastic mesh-bot by K7MHI Kelly Keeton 2025
+
 # Video Poker Game Module
 
 A text-based Video Poker game for the Meshtastic mesh-bot. Play classic five-card draw poker, place your bets, and try to build your bankroll!
@@ -591,6 +823,167 @@ Your ships: 5/5 afloat
 ## Credits
 
 - Written for Meshtastic mesh-bot by K7MHI Kelly Keeton 2025
+
+# Football Game Module
+
+A classic N.F.U. Football game adapted for Meshtastic mesh-bot. Play against the bot (or another human in the future) using natural language commands!
+
+## How to Play
+
+- **Start a New Game:**  
+  Send `football` or `fb` via DM to the bot to start a new game.
+
+- **Gameplay:**  
+  You always play Team 1 (offense), starting on your own 20-yard line.  
+  The bot plays Team 2 (defense).
+  
+  **Offensive Plays (Natural Language):**
+  - `run` — Running plays (gains 0-20 yards)
+  - `pass` — Passing plays (gains 5-30 yards, high variance)
+  - `bomb` — Bomb pass (high risk, high reward)
+  - `sweep` — Sweep around the edge
+  - `option` — Option play (run or pass)
+  - `screen` — Screen pass (short, safe)
+
+  **Special Plays (4th Down Only):**
+  - `punt` — Punt the ball away
+  - `field goal` or `fg` — Attempt a field goal
+
+  **Game Commands:**
+  - `score` or `s` — Show current score and field
+  - `help` or `?` — Show available plays and tips
+  - `new` or `n` — Start a new game
+  - `end` or `exit` — End the current game
+
+- **Game Objective:**  
+  Score points by moving the ball toward the opponent's endzone and reach the winning score (default: 20 points).
+
+- **Scoring:**  
+  - **Touchdown:** 6 points (ball reaches opponent's endzone)
+  - **Extra Point:** 1 point (automatic conversion, 90% success rate)
+  - **Field Goal:** 3 points (attempt on any down)
+  - **Safety:** 2 points (awarded to defending team)
+
+- **Game Flow:**  
+  - Each drive consists of 4 downs to gain 10 yards (1st down).
+  - Turnover on downs if you don't gain 10 yards in 4 plays.
+  - Possession changes after touchdowns, safeties, turnovers, or punts.
+  - Game ends when either team reaches the winning score.
+
+## Bot Strategy
+
+The bot uses a **biased random strategy**:
+- 70% random play selection
+- 20% counter-play (if you run repeatedly, bot defends against passes)
+- 10% aggressive defensive plays
+
+This makes the bot both unpredictable and challenging!
+
+## Example Session
+
+```
+🏈 **FOOTBALL** 🏈
+User vs Bot · Win at 20 pts
+
+**Coin Flip**: Team 2 receives kickoff
+
+🏟️  **FIELD**
+[0   10   20   30   40   50   60   70   80   90   100]
+●
+Down: 1/4 | Yard Line: 20
+
+**Commands**: run, pass, sweep, bomb, punt, field goal
+Or type: score, help, end
+
+**🤖 Bot's Turn (Team 2)** 🤖
+
+**Bot Play**: LEFT SWEEP
+**Yards Gained**: 8
+
+📍 **Bot First Down!**
+
+🏟️  **FIELD**
+[0   10   20   30   40   50   60   70   80   90   100]
+    ●
+Down: 1/4 | Yard Line: 28
+
+Your play: run, pass, sweep, bomb, punt, field goal?
+> pass
+
+**User (Team 1)**: SCREEN PASS
+**Bot Defense**: QB SNEAK
+**Yards Gained**: 12
+
+🏈 **TOUCHDOWN!** 🏈
+Extra point **GOOD**. 7 points!
+
+📊 **SCORE**
+User (Team 1): 7
+Bot  (Team 2): 8
+
+🏟️  **FIELD**
+[0   10   20   30   40   50   60   70   80   90   100]
+                  ●
+Down: 1/4 | Yard Line: 80
+
+Your play: run, pass, sweep, bomb, punt, field goal?
+> help
+
+🏈 **FOOTBALL HELP** 🏈
+
+**Offensive Plays:**
+  run       - Running plays (gains 0-20 yards)
+  pass      - Passing plays (gains 5-30 yards, high variance)
+  bomb      - Bomb pass (high risk/high reward)
+  sweep     - Sweep around the edge
+  option    - Option play (run or pass)
+  screen    - Screen pass (short, safe)
+
+**Special Plays (4th Down Only):**
+  punt      - Punt the ball away
+  fg / field goal - Attempt a field goal
+
+**Commands:**
+  score   - Show current score
+  help    - This help text
+  new     - Start a new game
+  end     - End the current game
+```
+
+## Rules & Features
+
+- 100-yard field (0–100 yard line)
+- Classic football rules: 4 downs to gain 10 yards
+- Touchdown endzone at opponent's 100-yard line
+- Turnover on downs if 10 yards not gained
+- 2.5% chance of fumble per play (loses possession)
+- Safeties occur if ball pushed back past own endzone
+- Game state stored per player (nodeID)
+- Supports concurrent games from multiple users
+
+## Notes
+
+- Each player starts at their own 20-yard line after scoring
+- Initial possession determined by coin flip
+- Only one game session per player at a time
+- Play via DM to avoid interfering with other users
+- Natural language input allows flexible phrasing (e.g., "run", "rushing", "carry" all work)
+- Game data is stored in-memory; restarting the bot resets all games
+
+## Future Enhancements
+
+- Two-player mode (user vs. user) similar to Battleship
+- Play statistics and leaderboards
+- Playbook customization
+- Multi-message game display for visual improvements
+- Field position tracking across possessions
+
+## Credits
+
+- Ported from the classic BASIC N.F.U. Football game
+- Original Python port by Martin Thoma (2022)
+- Original JavaScript version by Oscar Toledo G. (nanochess)
+- Refactored for Meshtastic mesh-bot by K7MHI Kelly Keeton 2025
 
 # Word of the Day Game — Rules & Features
 

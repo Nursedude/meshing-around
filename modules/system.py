@@ -75,6 +75,12 @@ if solar_conditions_enabled:
 else:
     hf_band_conditions = False
 
+# Weekday Configuration
+if weekday_enabled:
+    from modules.weekday import * # from the spudgunman/meshing-around repo
+    trap_list = trap_list + trap_list_weekday # items weekday, w:
+    help_message = help_message + ", weekday"
+
 # Command History Configuration
 if enableCmdHistory:
     trap_list = trap_list + ("history",)
@@ -114,7 +120,7 @@ if location_enabled:
         help_message = help_message + ", howtall"
 
 # NOAA alerts needs location module
-if wxAlertBroadcastEnabled or ipawsAlertEnabled or volcanoAlertBroadcastEnabled or eAlertBroadcastEnabled: #eAlertBroadcastEnabled depricated
+if wxAlertBroadcastEnabled or ipawsAlertEnabled or volcanoAlertBroadcastEnabled or eAlertBroadcastEnabled or ecAlertEnabled: #eAlertBroadcastEnabled depricated
     from modules.locationdata import * # from the spudgunman/meshing-around repo
     # limited subset, this should be done better but eh..
     trap_list = trap_list + ("wx", "wxa", "wxalert", "ea", "ealert", "valert")
@@ -217,6 +223,18 @@ if tictactoe_enabled:
     from modules.games.tictactoe import TicTacToe # from the spudgunman/meshing-around repo
     tictactoe = TicTacToe(display_module=None)
     trap_list = trap_list + ("tictactoe","tic-tac-toe",)
+    games_enabled = True
+
+if potatogunner_enabled:
+    from modules.games.potatogunner import potatogunner  # from the spudgunman/meshing-around repo
+    trap_list = trap_list + ("spudgunner","spudgun",)
+    games_enabled = True
+
+if lunarlander_enabled:
+    from modules.games.lunarlander import LunarLander # Lunar Lander simulation
+    lunarlander = LunarLander()
+    trap_list = trap_list + ("lunarlander",)
+    games_enabled = True
 
 if quiz_enabled:
     from modules.games.quiz import * # from the spudgunman/meshing-around repo
@@ -238,6 +256,12 @@ if wordOfTheDay:
 if battleship_enabled:
     from modules.games.battleship import playBattleship # from the spudgunman/meshing-around repo
     trap_list = trap_list + ("battleship",)
+    games_enabled = True
+
+if football_enabled:
+    from modules.games.football import Football # from the spudgunman/meshing-around repo
+    football = Football(display_module=None)
+    trap_list = trap_list + ("football",)
     games_enabled = True
 
 # Games Configuration
@@ -269,6 +293,12 @@ if games_enabled is True:
         gamesCmdList += "ticTacToe, "
     if battleship_enabled:
         gamesCmdList += "battleship, "
+    if football_enabled:
+        gamesCmdList += "football, "
+    if lunarlander_enabled:
+        gamesCmdList += "lunarLander, "
+    if potatogunner_enabled:
+        gamesCmdList += "spudgunner, "
     gamesCmdList = gamesCmdList[:-2] # remove the last comma
 else:
     gamesCmdList = ""
@@ -378,7 +408,7 @@ for i in range(1, 10):
     if globals().get(f'interface{i}') and globals().get(f'interface{i}_enabled'):
         try:
             globals()[f'myNodeNum{i}'] = globals()[f'interface{i}'].getMyNodeInfo()['num']
-            logger.debug(f"System: Initalized Radio Device{i} Node Number: {globals()[f'myNodeNum{i}']}")
+            logger.debug(f"System: Initialized Radio Device{i} Node Number: {globals()[f'myNodeNum{i}']})")
         except Exception as e:
             logger.critical(f"System: critical error initializing interface{i} {e}")
     else:
@@ -518,7 +548,7 @@ def cleanup_game_trackers(current_time):
         tracker_names = [
             'dwPlayerTracker', 'lemonadeTracker', 'jackTracker', 
             'vpTracker', 'mindTracker', 'golfTracker', 
-            'hangmanTracker', 'hamtestTracker', 'tictactoeTracker', 'surveyTracker', 'battleshipTracker'
+            'hangmanTracker', 'hamtestTracker', 'tictactoeTracker', 'surveyTracker', 'battleshipTracker', 'potatogunnerTracker', 'lunarlanderTracker', 'footballTracker'
         ]
         
         for tracker_name in tracker_names:
@@ -965,24 +995,16 @@ def send_message(message, ch, nodeid=0, nodeInt=1, bypassChuncking=False, reply_
             # exists to avoid spamming the radio.
             for position, m in enumerate(message_list, start=1):
                 chunkOf = f"{position}/{num_chunks}"
+                ack_text = "req.ACK " if wantAck else ""
                 if nodeid == 0:
                     # Send to channel
-                    if wantAck:
-                        logger.info(f"Device:{nodeInt} Channel:{ch} " + CustomFormatter.red + f"req.ACK " + f"Chunker{chunkOf} SendingChannel: " + CustomFormatter.white + m.replace('\n', ' '))
-                        _send_with_reply(text=m, channelIndex=ch, wantAck=True)
-                    else:
-                        logger.info(f"Device:{nodeInt} Channel:{ch} " + CustomFormatter.red + f"Chunker{chunkOf} SendingChannel: " + CustomFormatter.white + m.replace('\n', ' '))
-                        _send_with_reply(text=m, channelIndex=ch)
+                    logger.info(f"Device:{nodeInt} Channel:{ch} " + CustomFormatter.red + f"{ack_text}Chunker{chunkOf} SendingChannel: " + CustomFormatter.white + m.replace('\n', ' '))
+                    _send_with_reply(text=m, channelIndex=ch, wantAck=wantAck)
                 else:
                     # Send to DM
-                    if wantAck:
-                        logger.info(f"Device:{nodeInt} " + CustomFormatter.red + f"req.ACK " + f"Chunker{chunkOf} Sending DM: " + CustomFormatter.white + m.replace('\n', ' ') + CustomFormatter.purple +\
+                    logger.info(f"Device:{nodeInt} " + CustomFormatter.red + f"{ack_text}Chunker{chunkOf} Sending DM: " + CustomFormatter.white + m.replace('\n', ' ') + CustomFormatter.purple +\
                                  " To: " + CustomFormatter.white + f"{get_name_from_number(nodeid, 'long', nodeInt)}")
-                        _send_with_reply(text=m, channelIndex=ch, destinationId=nodeid, wantAck=True)
-                    else:
-                        logger.info(f"Device:{nodeInt} " + CustomFormatter.red + f"Chunker{chunkOf} Sending DM: " + CustomFormatter.white + m.replace('\n', ' ') + CustomFormatter.purple +\
-                                    " To: " + CustomFormatter.white + f"{get_name_from_number(nodeid, 'long', nodeInt)}")
-                        _send_with_reply(text=m, channelIndex=ch, destinationId=nodeid)
+                    _send_with_reply(text=m, channelIndex=ch, destinationId=nodeid, wantAck=wantAck)
 
                 # Throttle the message sending to prevent spamming the device.
                 # Same enumerate fix: duplicate chunk text used to make this
@@ -996,24 +1018,16 @@ def send_message(message, ch, nodeid=0, nodeInt=1, bypassChuncking=False, reply_
                 # wait an amount of time between sending each split message
                 time.sleep(splitDelay)
         else: # message is less than MESSAGE_CHUNK_SIZE characters
+            ack_text = "req.ACK " if wantAck else ""
             if nodeid == 0:
                 # Send to channel
-                if wantAck:
-                    logger.info(f"Device:{nodeInt} Channel:{ch} " + CustomFormatter.red + "req.ACK " + "SendingChannel: " + CustomFormatter.white + message.replace('\n', ' '))
-                    _send_with_reply(text=message, channelIndex=ch, wantAck=True)
-                else:
-                    logger.info(f"Device:{nodeInt} Channel:{ch} " + CustomFormatter.red + "SendingChannel: " + CustomFormatter.white + message.replace('\n', ' '))
-                    _send_with_reply(text=message, channelIndex=ch)
+                logger.info(f"Device:{nodeInt} Channel:{ch} " + CustomFormatter.red + f"{ack_text}SendingChannel: " + CustomFormatter.white + message.replace('\n', ' '))
+                _send_with_reply(text=message, channelIndex=ch, wantAck=wantAck)
             else:
                 # Send to DM
-                if wantAck:
-                    logger.info(f"Device:{nodeInt} " + CustomFormatter.red + "req.ACK " + "Sending DM: " + CustomFormatter.white + message.replace('\n', ' ') + CustomFormatter.purple +\
-                                 " To: " + CustomFormatter.white + f"{get_name_from_number(nodeid, 'long', nodeInt)}")
-                    _send_with_reply(text=message, channelIndex=ch, destinationId=nodeid, wantAck=True)
-                else:
-                    logger.info(f"Device:{nodeInt} " + CustomFormatter.red + "Sending DM: " + CustomFormatter.white + message.replace('\n', ' ') + CustomFormatter.purple +\
-                                " To: " + CustomFormatter.white + f"{get_name_from_number(nodeid, 'long', nodeInt)}")
-                    _send_with_reply(text=message, channelIndex=ch, destinationId=nodeid)
+                logger.info(f"Device:{nodeInt} " + CustomFormatter.red + f"{ack_text}Sending DM: " + CustomFormatter.white + message.replace('\n', ' ') + CustomFormatter.purple +\
+                             " To: " + CustomFormatter.white + f"{get_name_from_number(nodeid, 'long', nodeInt)}")
+                _send_with_reply(text=message, channelIndex=ch, destinationId=nodeid, wantAck=wantAck)
             # Throttle the message sending to prevent spamming the device
             time.sleep(responseDelay)
         return True
@@ -1379,6 +1393,7 @@ last_alerts = {
     "de": {"time": 0, "message": ""},
     "wx": {"time": 0, "message": ""},
     "volcano": {"time": 0, "message": ""},
+    "ec": {"time": 0, "message": ""},
 }
 def should_send_alert(alert_type, new_message, min_interval=1):
     now = time.time()
@@ -1392,7 +1407,7 @@ def should_send_alert(alert_type, new_message, min_interval=1):
 
 def handleAlertBroadcast(deviceID=1):
     try:
-        alertUk = alertDe = alertFema = wxAlert = volcanoAlert = overdueAlerts = NO_ALERTS
+        alertUk = alertDe = alertFema = alertEc = wxAlert = volcanoAlert = overdueAlerts = NO_ALERTS
         alertWx = False
         clock = datetime.now()
 
@@ -1414,6 +1429,8 @@ def handleAlertBroadcast(deviceID=1):
                 wxAlert = f"🚨 {alertWx[1]} EAS-WX ALERT: {alertWx[0]}"
         if eAlertBroadcastEnabled or ipawsAlertEnabled:
             alertFema = getIpawsAlert(latitudeValue, longitudeValue, shortAlerts=True)
+        if ecAlertEnabled:
+            alertEc = getEcAlert(my_settings.ecAlertRegionCode)
         if volcanoAlertBroadcastEnabled:
             volcanoAlert = get_volcano_usgs(latitudeValue, longitudeValue)
 
@@ -1424,7 +1441,8 @@ def handleAlertBroadcast(deviceID=1):
             alert_types = [
                 ("fema", alertFema, ipawsAlertEnabled),
                 ("wx", wxAlert, wxAlertBroadcastEnabled),
-                ("volcano", volcanoAlert, volcanoAlertBroadcastEnabled),]
+                ("volcano", volcanoAlert, volcanoAlertBroadcastEnabled),
+                ("ec", alertEc, ecAlertEnabled),]
 
         if enableDEalerts:
             alert_types = [("de", deAlerts, enableDEalerts)]

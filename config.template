@@ -52,6 +52,9 @@ whoami = True
 DadJokes = True
 DadJokesEmoji = False
 
+# weekday command shows day of week, day of year, days left in year, week number, days till Christmas, and past date info
+weekday = True
+
 # enable or disable the Solar module
 spaceWeather = True
 
@@ -135,10 +138,11 @@ enableEcho = False
 echoChannel = 9
 
 [emergencyHandler]
-# enable or disable the emergency response handler
+# enable or disable the emergency response handler (trap 'help' used on mesh)
 enabled = False
 # channel to send a message to when the emergency handler is triggered
 alert_channel = 2
+# interface also used for emergency alerts
 alert_interface = 1
 
 [sentry]
@@ -212,6 +216,8 @@ useMetric = False
 
 # repeaterList lookup location (rbook / artsci / False)
 repeaterLookup = rbook
+# Number of repeaters to include in rlist output (default 4)
+repeaterListMax = 4
 
 # Satalite Pass Prediction
 # Register for free API https://www.n2yo.com/login/ personal data page at bottom 'Are you developer?'
@@ -221,6 +227,12 @@ satList = 25544,7530
 
 # use Open-Meteo API for weather data not NOAA useful for non US locations
 UseMeteoWxAPI = False
+
+# Optional: specify an Open-Meteo model for more locally-accurate forecasts.
+# Leave blank for Open-Meteo's automatic best_match selection.
+# Examples: gem_seamless (Canada), icon_seamless (Europe), jma_seamless (Japan)
+# Full list at https://open-meteo.com/en/docs (see "Weather models" dropdown)
+meteoWxModel = 
 
 # NOAA weather forecast days
 NOAAforecastDuration = 3
@@ -265,13 +277,22 @@ volcanoAlertBroadcastEnabled = False
 ignoreUSGSEnable = False
 ignoreUSGSWords = test,advisory
 
-# Use Germany/DE Alert Broadcast Data
+# Canada Environment Weather Alert Broadcast
+ecAlertEnabled = False
+# Region code for your area. Find your code at: https://www.canada.ca/en/environment-climate-change/services/weather-general-tools-resources/weatheroffice-online-services/atom-feeds.html
+# Example: onrm22 for Saugeen Shores - Kincardine - Southern Bruce County, Ontario
+ecAlertRegionCode = 
+# Enable Ignore, headline that includes following word list
+ignoreECenable = True
+ignoreECwords = test,exercise
+
+# Germany/DE Alert Broadcast Data
 enableDEalerts = False
 # comma separated list of regional codes trigger local alert.
 # find your regional codet at https://www.xrepository.de/api/xrepository/urn:de:bund:destatis:bevoelkerungsstatistik:schluessel:rs_2021-07-31/download/Regionalschl_ssel_2021-07-31.json
 myRegionalKeysDE = 110000000000,120510000000
 
-# Alerts are sent to the emergency_handler interface and channel duplicate messages are send here if set
+# All Emergency Alerts are sent to the 'emergency_handler' interface and channel duplicate messages are send here if set
 eAlertBroadcastCh = 
 
 # CheckList Checkin/Checkout
@@ -452,8 +473,11 @@ golfsim = True
 hangman = True
 hamtest = True
 tictactoe = True
+lunarlander = True
 wordOfTheDay = True
 battleShip = True
+potatogunner = True
+football = True
 
 # enable or disable the quiz game module questions are in data/quiz.json
 quiz = False

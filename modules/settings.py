@@ -56,6 +56,9 @@ dwPlayerTracker = []         # DopeWars player tracker
 jackTracker = []             # Jack game tracker
 mindTracker = []             # Mastermind (mmind) game tracker
 battleshipTracker = []       # Battleship game tracker
+footballTracker = []         # Football game tracker
+lunarlanderTracker = []      # Lunar Lander game tracker
+potatogunnerTracker = []     # Potato Gunner game tracker
 
 # Memory Management Constants
 MAX_MSG_HISTORY = 250
@@ -266,6 +269,7 @@ try:
     whoami_enabled = config['general'].getboolean('whoami', True)
     dad_jokes_enabled = config['general'].getboolean('DadJokes', False)
     dad_jokes_emojiJokes = config['general'].getboolean('DadJokesEmoji', False)
+    weekday_enabled = config['general'].getboolean('weekday', True)
     bee_enabled = config['general'].getboolean('bee', False) # 🐝 off by default undocumented
     bible_enabled = config['general'].getboolean('verse', False) # verse command
     solar_conditions_enabled = config['general'].getboolean('spaceWeather', True)
@@ -324,8 +328,10 @@ try:
     fuzz_config_location = config['location'].getboolean('fuzzConfigLocation', True) # default True
     fuzzItAll = config['location'].getboolean('fuzzAllLocations', False) # default False, only fuzz config location
     use_meteo_wxApi = config['location'].getboolean('UseMeteoWxAPI', False) # default False use NOAA
+    meteo_wx_model = config['location'].get('meteoWxModel', '') # default empty string for best_match
     use_metric = config['location'].getboolean('useMetric', False) # default Imperial units
     repeater_lookup = config['location'].get('repeaterLookup', 'rbook') # default repeater lookup source
+    repeater_list_max = config['location'].getint('repeaterListMax', 4) # default 4 repeaters
     n2yoAPIKey = config['location'].get('n2yoAPIKey', '') # default empty
     satListConfig = config['location'].get('satList', '25544').split(',') # default 25544 ISS
     riverListDefault = config['location'].get('riverList', '').split(',') # default None
@@ -349,11 +355,15 @@ try:
     enableDEalerts = config['location'].getboolean('enableDEalerts', False) # default False
 
     ignoreEASenable = config['location'].getboolean('ignoreEASenable', False) # default False
-    ignoreEASwords = config['location'].get('ignoreEASwords', 'test,advisory').split(',') # default test,advisory
+    ignoreEASwords = [w.strip() for w in config['location'].get('ignoreEASwords', 'test,advisory').split(',') if w.strip()] # default test,advisory
     ignoreFEMAenable = config['location'].getboolean('ignoreFEMAenable', True) # default True
-    ignoreFEMAwords = config['location'].get('ignoreFEMAwords', 'test,exercise').split(',') # default test,exercise
+    ignoreFEMAwords = [w.strip() for w in config['location'].get('ignoreFEMAwords', 'test,exercise').split(',') if w.strip()] # default test,exercise
+    ecAlertEnabled = config['location'].getboolean('ecAlertEnabled', False) # default False
+    ecAlertRegionCode = config['location'].get('ecAlertRegionCode', '') # default empty
+    ignoreECenable = config['location'].getboolean('ignoreECenable', True) # default True
+    ignoreECwords = [w.strip() for w in config['location'].get('ignoreECwords', 'test,exercise').split(',') if w.strip()] # default test,exercise
     ignoreUSGSEnable = config['location'].getboolean('ignoreVolcanoEnable', False) # default False
-    ignoreUSGSWords = config['location'].get('ignoreVolcanoWords', 'test,advisory').split(',') # default test,advisory
+    ignoreUSGSWords = [w.strip() for w in config['location'].get('ignoreVolcanoWords', 'test,advisory').split(',') if w.strip()] # default test,advisory
     
     forecastDuration = config['location'].getint('NOAAforecastDuration', 4) # NOAA forcast days
     numWxAlerts = config['location'].getint('NOAAalertCount', 2) # default 2 alerts
@@ -363,12 +373,13 @@ try:
     myRegionalKeysDE = config['location'].get('myRegionalKeysDE', '110000000000').split(',') # default city Berlin
     eAlertBroadcastChannel = config['location'].get('eAlertBroadcastCh', '').split(',') # default empty
 
-    # any US alerts enabled
+    # any US/Canada alerts enabled
     usAlerts = (
         ipawsAlertEnabled or
         wxAlertBroadcastEnabled or
         volcanoAlertBroadcastEnabled or
-        eAlertBroadcastEnabled
+        eAlertBroadcastEnabled or
+        ecAlertEnabled
         )
     
     # emergency response
@@ -498,6 +509,7 @@ try:
     hangman_enabled = config['games'].getboolean('hangman', True)
     hamtest_enabled = config['games'].getboolean('hamtest', True)
     tictactoe_enabled = config['games'].getboolean('tictactoe', True)
+    lunarlander_enabled = config['games'].getboolean('lunarlander', True)
     quiz_enabled = config['games'].getboolean('quiz', False)
     survey_enabled = config['games'].getboolean('survey', False)
     default_survey = config['games'].get('defaultSurvey', 'example') # default example
@@ -505,6 +517,8 @@ try:
     surveyRecordLocation = config['games'].getboolean('surveyRecordLocation', True)
     wordOfTheDay = config['games'].getboolean('wordOfTheDay', True)
     battleship_enabled = config['games'].getboolean('battleShip', True)
+    football_enabled = config['games'].getboolean('football', True)
+    potatogunner_enabled = config['games'].getboolean('potatogunner', True)
 
     # messaging settings
     responseDelay = config['messagingSettings'].getfloat('responseDelay', 0.7) # default 0.7

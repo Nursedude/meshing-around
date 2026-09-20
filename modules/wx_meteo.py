@@ -5,7 +5,7 @@ import requests
 import json
 from modules.log import logger
 from modules.fetch_cache import ttl_cache
-from modules.settings import ERROR_FETCHING_DATA, urlTimeoutSeconds
+from modules.settings import ERROR_FETCHING_DATA, urlTimeoutSeconds, meteo_wx_model
 
 def get_weather_data(api_url, params):
     # timeout is required: a hung socket here stalls the single packet-processing path
@@ -36,6 +36,10 @@ def get_wx_meteo(lat=0, lon=0, unit=0):
 		params["precipitation_unit"] = "inch"
 		params["distance_unit"] = "mile"
 		params["pressure_unit"] = "inHg"
+
+	# Add optional weather model if configured
+	if meteo_wx_model:
+		params["models"] = meteo_wx_model
 
 	try:
 		# Fetch the weather data
@@ -177,9 +181,9 @@ def get_wx_meteo(lat=0, lon=0, unit=0):
 		# check for precipitation
 		if daily_precipitation_hours[i] > 0:
 			if unit == 0:
-				weather_report += "Precip: " + str(round(daily_precipitation_probability_max[i],2)) + "in, in " + str(round(daily_precipitation_hours[i],2)) + " hours. "
+				weather_report += "Precip: " + str(round(daily_precipitation_probability_max[i],2)) + "% chance, in " + str(round(daily_precipitation_hours[i],2)) + " hours. "
 			else:
-				weather_report += "Precip: " + str(round(daily_precipitation_probability_max[i],2)) + "mm, in " + str(round(daily_precipitation_hours[i],2)) + " hours. "
+				weather_report += "Precip: " + str(round(daily_precipitation_probability_max[i],2)) + "% chance, in " + str(round(daily_precipitation_hours[i],2)) + " hours. "
 		else:
 			weather_report += "No Precip. "
 

@@ -118,17 +118,17 @@ class TestBot(unittest.TestCase):
         # Context might be empty if wiki is disabled or fails, that's ok
 
     def test_get_moon_phase(self):
-        from space import get_moon
+        from modules.space import get_moon
         phase = get_moon(lat, lon)
         self.assertIsInstance(phase, str)
 
     def test_get_sun_times(self):
-        from space import get_sun
+        from modules.space import get_sun
         sun_times = get_sun(lat, lon)
         self.assertIsInstance(sun_times, str)
     
     def test_hf_band_conditions(self):
-        from space import hf_band_conditions
+        from modules.space import hf_band_conditions
         conditions = hf_band_conditions()
         self.assertIsInstance(conditions, str)
 
@@ -143,13 +143,13 @@ class TestBot(unittest.TestCase):
         self.assertIsInstance(summary, str)
 
     def get_openskynetwork(self):
-        from locationdata import get_openskynetwork
+        from modules.locationdata import get_openskynetwork
         flights = get_openskynetwork(lat, lon)
         self.assertIsInstance(flights, str)
 
     def test_initalize_qrz_database(self):
-        from qrz import initalize_qrz_database
-        result = initalize_qrz_database()
+        from qrz import initialize_qrz_database
+        result = initialize_qrz_database()
         self.assertTrue(result)
 
     def test_import_radio_module(self):
@@ -337,6 +337,88 @@ class TestBot(unittest.TestCase):
         self.assertIsInstance(initial, str)
         self.assertIsInstance(answer_msg, str)
 
+    def test_football_new_game(self):
+        from games.football import Football
+        football = Football(display_module=None)
+        user_id = 12345
+        # Start a new game
+        initial = football.new_game(user_id, winning_score=20)
+        print("Initial game:", initial[:100])  # Print first 100 chars
+        self.assertIsInstance(initial, str)
+        self.assertIn("FOOTBALL", initial)
+        self.assertIn("Coin Flip", initial)
+        # Verify game state was created
+        self.assertIn(user_id, football.game)
+        self.assertIn("score", football.game[user_id])
+        self.assertEqual(football.game[user_id]["score"], [0, 0])
+
+    def test_football_user_play(self):
+        from games.football import Football
+        football = Football(display_module=None)
+        user_id = 12346
+        # Start a new game
+        football.new_game(user_id, winning_score=20)
+        # Make sure user has possession (or get one)
+        if football.game[user_id]["possession"] == 1:  # Bot has possession
+            football.game[user_id]["possession"] = 0  # Give to user
+            football.game[user_id]["position"] = 20
+        # User executes a running play
+        result = football.play(user_id, "run")
+        print("User play result:", result[:100])
+        self.assertIsInstance(result, str)
+        self.assertIn("Yards Gained", result)
+
+    def test_football_scoring(self):
+        from games.football import Football
+        football = Football(display_module=None)
+        user_id = 12347
+        # Start a new game
+        football.new_game(user_id, winning_score=20)
+        # Set user at near opponent endzone (for easy TD)
+        football.game[user_id]["possession"] = 0
+        football.game[user_id]["position"] = 98
+        football.game[user_id]["down"] = 1
+        # Execute play that should result in TD
+        result = football._score_touchdown(user_id, "")
+        print("Touchdown result:", result[:100])
+        self.assertIsInstance(result, str)
+        self.assertIn("TOUCHDOWN", result)
+        # Verify score increased
+        self.assertGreater(football.game[user_id]["score"][0], 0)
+
+    def test_football_bot_strategy(self):
+        from games.football import Football
+        football = Football(display_module=None)
+        user_id = 12348
+        # Test bot move selection with biased random
+        user_play_type = [0, 1, 2, 3, 4]  # Running plays
+        # Get multiple bot plays to verify strategy works
+        bot_plays = []
+        for _ in range(10):
+            bot_play = football._get_bot_play(user_id, user_play_type)
+            bot_plays.append(bot_play)
+            self.assertIsInstance(bot_play, int)
+            self.assertGreaterEqual(bot_play, 0)
+            self.assertLess(bot_play, 20)
+        # Verify we got some variety (not always the same play)
+        self.assertGreater(len(set(bot_plays)), 1)
+
+    def test_football_end_game(self):
+        from games.football import Football
+        football = Football(display_module=None)
+        user_id = 12349
+        # Start a new game
+        football.new_game(user_id, winning_score=3)  # Low winning score
+        # Manually set score to trigger game over
+        football.game[user_id]["score"] = [3, 1]
+        # End the game
+        result = football._end_game(user_id)
+        print("End game result:", result[:100])
+        self.assertIsInstance(result, str)
+        self.assertIn("GAME OVER", result)
+        self.assertIn("YOU WIN", result)
+        self.assertTrue(football.game[user_id]["game_over"])
+
 
     ##### API Tests - Extended tests run only if CHECKALL is True #####
 
@@ -351,32 +433,32 @@ class TestBot(unittest.TestCase):
         self.assertIsInstance(response, str)
 
         def test_getRepeaterBook(self):
-            from locationdata import getRepeaterBook
+            from modules.locationdata import getRepeaterBook
             repeaters = getRepeaterBook(lat, lon)
             self.assertIsInstance(repeaters, str)
 
         def test_getArtSciRepeaters(self):
-            from locationdata import getArtSciRepeaters
+            from modules.locationdata import getArtSciRepeaters
             repeaters = getArtSciRepeaters(lat, lon)
             self.assertIsInstance(repeaters, str)
 
         def test_get_NOAAtides(self):
-            from locationdata import get_NOAAtide
+            from modules.locationdata import get_NOAAtide
             tides = get_NOAAtide(lat, lon)
             self.assertIsInstance(tides, str)
 
         def test_get_NOAAweather(self):
-            from locationdata import get_NOAAweather
+            from modules.locationdata import get_NOAAweather
             weather = get_NOAAweather(lat, lon)
             self.assertIsInstance(weather, str)
 
         def test_where_am_i(self):
-            from locationdata import where_am_i
+            from modules.locationdata import where_am_i
             location = where_am_i(lat, lon)
             self.assertIsInstance(location, str)
 
         def test_getWeatherAlertsNOAA(self):
-            from locationdata import getWeatherAlertsNOAA
+            from modules.locationdata import getWeatherAlertsNOAA
             alerts = getWeatherAlertsNOAA(lat, lon)
             if isinstance(alerts, tuple):
                 self.assertIsInstance(alerts[0], str)
@@ -384,37 +466,83 @@ class TestBot(unittest.TestCase):
                 self.assertIsInstance(alerts, str)
         
         def test_getActiveWeatherAlertsDetailNOAA(self):
-            from locationdata import getActiveWeatherAlertsDetailNOAA
+            from modules.locationdata import getActiveWeatherAlertsDetailNOAA
             alerts_detail = getActiveWeatherAlertsDetailNOAA(lat, lon)
             self.assertIsInstance(alerts_detail, str)
         
         def test_getIpawsAlerts(self):
-            from locationdata import getIpawsAlert
+            from modules.locationdata import getIpawsAlert
             alerts = getIpawsAlert(lat, lon)
             self.assertIsInstance(alerts, str)
         
+        def test_getEcAlerts_no_alerts(self):
+            """Test EC alert parsing with 'no alerts in effect' response"""
+            from modules.locationdata import getEcAlert
+            from unittest.mock import patch
+            
+            # Sample XML from Environment Canada for "no alerts in effect"
+            no_alerts_xml = '''<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en-ca">
+    <title>Test Region - Weather Alert - Environment Canada</title>
+    <entry>
+        <title>No alerts in effect, Test Region</title>
+        <summary type="html">No alerts currently active</summary>
+        <link type="text/html" href="https://weather.gc.ca/warnings/report_e.html?test"/>
+    </entry>
+</feed>'''
+            
+            with patch('modules.locationdata.requests.get') as mock_get:
+                mock_get.return_value.ok = True
+                mock_get.return_value.text = no_alerts_xml
+                result = getEcAlert('test')
+                self.assertEqual(result, 'No alerts in effect')  # Should return NO_ALERTS constant
+        
+        def test_getEcAlerts_with_alert(self):
+            """Test EC alert parsing with actual alert"""
+            from modules.locationdata import getEcAlert
+            from unittest.mock import patch
+            
+            # Sample XML from Environment Canada with real alert (from issue #342)
+            alert_xml = '''<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en-ca">
+    <title>Test Region - Weather Alert - Environment Canada</title>
+    <entry>
+        <title>SPECIAL WEATHER STATEMENT, Test Region</title>
+        <summary type="html">Issued: 4:48 AM EDT Saturday 22 August 2026</summary>
+        <link type="text/html" href="https://weather.gc.ca/warnings/report_e.html?test"/>
+    </entry>
+</feed>'''
+            
+            with patch('modules.locationdata.requests.get') as mock_get:
+                mock_get.return_value.ok = True
+                mock_get.return_value.text = alert_xml
+                result = getEcAlert('test')
+                self.assertIn('SPECIAL WEATHER STATEMENT', result)
+                self.assertIn('Test Region', result)
+                self.assertIn('weather.gc.ca', result)
+        
         def test_get_flood_noaa(self):
-            from locationdata import get_flood_noaa
+            from modules.locationdata import get_flood_noaa
             flood_info = get_flood_noaa(lat, lon, 12484500)  # Example gauge UID
             self.assertIsInstance(flood_info, str)
         
         def test_get_volcano_usgs(self):
-            from locationdata import get_volcano_usgs
+            from modules.locationdata import get_volcano_usgs
             volcano_info = get_volcano_usgs(lat, lon)
             self.assertIsInstance(volcano_info, str)
 
         def test_get_nws_marine_alerts(self):
-            from locationdata import get_nws_marine
+            from modules.locationdata import get_nws_marine
             marine_alerts = get_nws_marine('https://tgftp.nws.noaa.gov/data/forecasts/marine/coastal/pz/pzz135.txt',1) # Example zone
             self.assertIsInstance(marine_alerts, str)
 
         def test_checkUSGSEarthQuakes(self):
-            from locationdata import checkUSGSEarthQuake
+            from modules.locationdata import checkUSGSEarthQuake
             earthquakes = checkUSGSEarthQuake(lat, lon)
             self.assertIsInstance(earthquakes, str)
 
         def test_getNextSatellitePass(self):
-            from space import getNextSatellitePass
+            from modules.space import getNextSatellitePass
             pass_info = getNextSatellitePass('25544', lat, lon)
             self.assertIsInstance(pass_info, str)  
 

@@ -107,32 +107,86 @@ def getRepeaterBook(lat=0, lon=0):
         if table is not None:
             cells = table.find_all('td')
             data = []
-            for i in range(0, len(cells), 11):
-                if i + 10 < len(cells):  #avoid IndexError
-                    repeater = {
-                        'frequency': cells[i].text.strip() if i < len(cells) else 'N/A',
-                        'offset': cells[i + 1].text.strip() if i + 1 < len(cells) else 'N/A',
-                        'tone': cells[i + 2].text.strip() if i + 2 < len(cells) else 'N/A',
-                        'call_sign': cells[i + 3].text.strip() if i + 3 < len(cells) else 'N/A',
-                        'location': cells[i + 4].text.strip() if i + 4 < len(cells) else 'N/A',
-                        'state': cells[i + 5].text.strip() if i + 5 < len(cells) else 'N/A',
-                        'use': cells[i + 6].text.strip() if i + 6 < len(cells) else 'N/A',
-                        'mode': cells[i + 7].text.strip() if i + 7 < len(cells) else 'N/A',
-                        'distance': cells[i + 8].text.strip() if i + 8 < len(cells) else 'N/A',
-                        'direction': cells[i + 9].text.strip() if i + 9 < len(cells) else 'N/A'
-                    }
+            
+            # Expected header sequence: ['', 'Freq', 'Offset', 'Access', 'Call', 'Location', 'ST/PR', 'Use', 'Mode', 'Mi', 'Status']
+            col_indices = {}
+            thead = table.find('thead')
+            if thead:
+                try:
+                    headers = thead.find_all('th')
+                    if headers:
+                        for idx, th in enumerate(headers):
+                            header_text = th.text.strip().lower()
+                            # Map header columns to field names
+                            if 'freq' in header_text:
+                                col_indices['frequency'] = idx
+                            elif 'offset' in header_text:
+                                col_indices['offset'] = idx
+                            elif 'access' in header_text:
+                                col_indices['tone'] = idx
+                            elif 'call' in header_text:
+                                col_indices['call_sign'] = idx
+                            elif 'location' in header_text:
+                                col_indices['location'] = idx
+                            elif 'st' in header_text or 'state' in header_text or 'pr' in header_text:
+                                col_indices['state'] = idx
+                            elif header_text == 'use':
+                                col_indices['use'] = idx
+                            elif 'mode' in header_text:
+                                col_indices['mode'] = idx
+                            elif 'mi' in header_text or 'distance' in header_text:
+                                col_indices['distance'] = idx
+                            elif 'status' in header_text:
+                                col_indices['direction'] = idx
+                        
+                        if col_indices:
+                            logger.debug(f"Location: RepeaterBook dynamic column mapping detected: {col_indices}")
+                except Exception as header_parse_error:
+                    logger.debug(f"Location: Header parsing failed, using fallback indices: {header_parse_error}")
+            
+            # Fallback: Hardcoded indices with stride=12 and +1 offset fix from issue #332
+            if not col_indices:
+                col_indices = {
+                    'frequency': 1,
+                    'offset': 2,
+                    'tone': 3,
+                    'call_sign': 4,
+                    'location': 5,
+                    'state': 6,
+                    'use': 7,
+                    'mode': 8,
+                    'distance': 9,
+                    'direction': 10
+                }
+                logger.debug("Location: Using Phase 1 fallback indices (stride=12, issue #332 fix applied)")
+            
+            # Determine cells per row from the actual first data row's <td> count
+            # This handles cases where tbody rows have more cells than thead headers
+            tbody = table.find('tbody')
+            first_row = tbody.find('tr') if tbody else None
+            cells_per_row = len(first_row.find_all('td')) if first_row else (max(col_indices.values()) + 1 if col_indices else 12)
+            
+            # Parse repeater rows using detected/fallback column indices
+            for i in range(0, len(cells), cells_per_row):
+                if i + cells_per_row - 1 < len(cells):  # Avoid IndexError
+                    repeater = {}
+                    for key, col_idx in col_indices.items():
+                        cell_idx = i + col_idx
+                        repeater[key] = cells[cell_idx].text.strip() if cell_idx < len(cells) else 'N/A'
                     data.append(repeater)
         else:
             # No table found — could be legitimately no data or markup change.
             logger.debug("Location: No repeater table found on RepeaterBook page, scraping failed or no data for region.")
             msg = "No Data for your Region"
     except Exception as e:
+        logger.debug(f"Location: Error processing RepeaterBook response: {e}")
         msg = "No repeaters found 😔"
-    # Limit the output to the first 4 repeaters
-    for repeater in data[:4]:
-        tmpTone = repeater['tone'].replace(" /", "")
-        msg += f"{repeater['call_sign']}📶{repeater['frequency']}{repeater['offset']},{tmpTone}.{repeater['mode']}"
-        if repeater != data[:4][-1]: msg += '\n'
+    
+    # Limit the output to the configured number of repeaters
+    for repeater in data[:my_settings.repeater_list_max]:
+        tmpTone = repeater.get('tone', '').replace(" /", "")
+        msg += f"{repeater.get('call_sign', 'N/A')}📶{repeater.get('frequency', 'N/A')}{repeater.get('offset', '')},{tmpTone}.{repeater.get('mode', '')}"
+        if repeater != data[:my_settings.repeater_list_max][-1]: msg += '\n'
     return msg
 
 def getArtSciRepeaters(lat=0, lon=0):
@@ -2038,6 +2092,114 @@ def mapHandler(userID, deviceID, channel_number, message, snr, rssi, hop):
     
     # Empty command - show help
     return "🗺️Use 'map help' for help"
+
+def getEcAlert(region_code=''):
+    """
+    Get the latest Environment Canada weather alert for a given region.
+    Region codes available at: https://www.canada.ca/en/environment-climate-change/services/weather-general-tools-resources/weatheroffice-online-services/atom-feeds.html
+    
+    Args:
+        region_code: EC region code (e.g., 'onrm22' for Saugeen Shores)
+    
+    Returns:
+        Formatted alert string or NO_ALERTS constant
+    """
+    if not region_code or not region_code.strip():
+        logger.warning("System: EC Alert region code not configured")
+        return my_settings.NO_ALERTS
+    
+    try:
+        # Fetch the Atom feed from Environment Canada
+        url = f"https://weather.gc.ca/rss/battleboard/{region_code}_e.xml"
+        alert_data = requests.get(url, timeout=my_settings.urlTimeoutSeconds)
+        
+        if not alert_data.ok:
+            logger.warning(f"System: EC Alert fetching from {url} (HTTP {alert_data.status_code})")
+            return my_settings.ERROR_FETCHING_DATA
+        
+        if not alert_data.text.strip():
+            logger.warning(f"System: EC Alert received empty response from {url}")
+            return my_settings.ERROR_FETCHING_DATA
+            
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"System: EC Alert network error fetching from {url}: {e}")
+        return my_settings.ERROR_FETCHING_DATA
+    except Exception as e:
+        logger.warning(f"System: EC Alert error: {e}")
+        return my_settings.ERROR_FETCHING_DATA
+    
+    try:
+        # Parse Atom XML (note: different structure from RSS - uses <feed><entry> instead of <rss><channel><item>)
+        alertxml = xml.dom.minidom.parseString(alert_data.text)
+    except xml.parsers.expat.ExpatError as e:
+        logger.warning(f"System: EC Alert XML parsing error: {e}")
+        return my_settings.NO_ALERTS
+    except Exception as e:
+        logger.warning(f"System: EC Alert error parsing XML: {e}")
+        return my_settings.NO_ALERTS
+    
+    alerts = []
+    
+    try:
+        # Extract alerts from Atom feed (entry elements)
+        for entry in alertxml.getElementsByTagName("entry"):
+            # Extract title
+            title_nodes = entry.getElementsByTagName("title")
+            if not title_nodes or not title_nodes[0].firstChild:
+                continue
+            title = title_nodes[0].firstChild.nodeValue.strip()
+            
+            # Check for "no alerts in effect" - if present, return NO_ALERTS
+            if "no alerts in effect" in title.lower():
+                return my_settings.NO_ALERTS
+            
+            # Extract summary (description)
+            summary = ""
+            summary_nodes = entry.getElementsByTagName("summary")
+            if summary_nodes and summary_nodes[0].firstChild:
+                summary = summary_nodes[0].firstChild.nodeValue.strip()
+            
+            # Extract link
+            link = ""
+            link_nodes = entry.getElementsByTagName("link")
+            for link_node in link_nodes:
+                if link_node.getAttribute("type") == "text/html" and link_node.getAttribute("href"):
+                    link = link_node.getAttribute("href")
+                    break
+            
+            # Apply word filters
+            if my_settings.ignoreECenable:
+                ignore_alert = any(
+                    word.lower() in title.lower()
+                    for word in my_settings.ignoreECwords)
+                if ignore_alert:
+                    logger.debug(f"System: EC Alert filtered by WORD: {title} containing one of {my_settings.ignoreECwords}")
+                    continue
+            
+            # Add to alerts list
+            alerts.append({
+                'title': title,
+                'summary': summary,
+                'link': link
+            })
+    
+    except Exception as e:
+        logger.debug(f"System: EC Alert error processing entries: {e}")
+        return my_settings.NO_ALERTS
+    
+    # Format and return alerts
+    if len(alerts) > 0:
+        alert_text = ""
+        for alert_item in alerts[:my_settings.numWxAlerts]:
+            alert_text += f"🚨EC Alert: {alert_item['title']}\n{alert_item['summary']}"
+            if alert_item['link']:
+                alert_text += f"\n{alert_item['link']}"
+            # add a newline if not the last alert
+            if alert_item != alerts[:my_settings.numWxAlerts][-1]:
+                alert_text += "\n"
+        return alert_text
+    else:
+        return my_settings.NO_ALERTS
 
 # Initialize the locations database when module is imported
 initialize_locations_database()
