@@ -28,7 +28,7 @@ reconciled here into one:
 
 | Edit | Origin | What it does |
 |---|---|---|
-| `_meshforge_reply_is_dup()` | `.32` | Dual-bridge reply dedup. Both bridge paths kept for redundancy (~55% combined delivery, measured 2026-05-26); reply once. Window `MESHFORGE_REPLY_DEDUP_S` (default 30s). Applies ONLY to `[MC:who]`/`[chN:who]`-tagged text — an untagged repeat is a person retrying (2026-10-17). |
+| ~~`_meshforge_reply_is_dup()`~~ | `.32` | **REMOVED 2026-10-17.** Dual-bridge reply dedup; lehua logs 09-15→10-17: 430 commands, 0 `[chN:]` second copies, its one firing dropped a person's retry. See `tests/test_no_reply_dedup.py`. |
 | Delivery ACK/NAK logging | `.32` | Logs `ROUTING_APP` outcome for the bot's own `wantAck` replies. Observability only. |
 | Bridge routing-tag stripping | `.32` | Strips leading `[RNS:..]`/`[Mesh:..]`/`[chN:..]` so bridged commands parse. **The bridge breaks without it.** |
 | `ignoreDMs` | VolcanoAI | Config-overridable; ignore direct messages when set. |

@@ -2029,41 +2029,6 @@ def handle_boot(mesh=True):
     except Exception as e:
         logger.error(f"System: Error during boot: {e}")
 
-def _meshforge_reply_is_dup(original_text, command, channel, from_id):
-    # MeshForge: dual-bridge reply guard. The same MeshCore command reaches
-    # the bot via two bridge paths ([MC:..] and [ch0:..]) seconds apart;
-    # BOTH are kept (each ~33% delivery, together ~55% — load-bearing
-    # redundancy on the lossy segment, measured 2026-05-26), but the bot
-    # must REPLY only once. Returns True if (origin, command, channel) was
-    # already answered within MESHFORGE_REPLY_DEDUP_S seconds (default 30;
-    # <=0 disables). origin is parsed from the [MC:who]/[chN:who] tag so two
-    # senders' identical commands are never collapsed. An UNTAGGED message is
-    # a direct RF packet (the radio already drops repeated packet ids), so a
-    # second one is a person asking again — never a dup (lehua 2026-10-17:
-    # a `wx` retry after a NOAA 500 was swallowed).
-    import os as _os, re as _re, time as _time
-    try:
-        window = int(_os.environ.get('MESHFORGE_REPLY_DEDUP_S', '30'))
-    except (TypeError, ValueError):
-        window = 30
-    if window <= 0 or not command:
-        return False
-    m = _re.search(r'\[(?:MC|ch\d+):([^\]]+)\]', original_text or '')
-    if not m:
-        return False
-    origin = m.group(1).strip()
-    key = (origin, ' '.join(str(command).split()).lower(), channel)
-    now = _time.time()
-    cache = _meshforge_reply_is_dup.__dict__.setdefault('_seen', {})
-    for stale in [k for k, t in cache.items() if now - t > window]:
-        cache.pop(stale, None)
-    if key in cache and now - cache[key] <= window:
-        cache[key] = now
-        return True
-    cache[key] = now
-    return False
-
-
 def _meshforge_is_machinery_ack(message_string):
     # MeshForge: bridge instrumentation, not a user. The rescanary's relayed
     # delivery receipts ('[RNS:xxxx] ACK seq=NNN orig=rescanary-...') lead
@@ -2426,13 +2391,6 @@ def onReceive(packet, interface):
                         # message is for bot to respond to, seriously this time..
                         logger.info(f"Device:{rxNode} Channel:{channel_number} " + CustomFormatter.green + "ReceivedChannel: " + CustomFormatter.white + f"{message_log_string} " + CustomFormatter.purple +\
                                     "From: " + CustomFormatter.white + f"{get_name_from_number(message_from_id, 'long', rxNode)}")
-                        # MeshForge: reply-dedup for dual-bridged commands —
-                        # receipt is logged above (so the dual-inject watch
-                        # still sees both copies); suppress only the second
-                        # REPLY. See _meshforge_reply_is_dup.
-                        if _meshforge_reply_is_dup(message_log_string, message_string, channel_number, message_from_id):
-                            logger.info(f"Device:{rxNode} Channel:{channel_number} MeshForge: dropped duplicate reply (dual-bridged), kept receipt above")
-                            return
                         if my_settings.useDMForResponse:
                             # respond to channel message via direct message
                             send_message(auto_response(message_string, snr, rssi, hop, pkiStatus, message_from_id, channel_number, rxNode, isDM), channel_number, message_from_id, rxNode, reply_id=packet_id)
