@@ -2037,7 +2037,10 @@ def _meshforge_reply_is_dup(original_text, command, channel, from_id):
     # must REPLY only once. Returns True if (origin, command, channel) was
     # already answered within MESHFORGE_REPLY_DEDUP_S seconds (default 30;
     # <=0 disables). origin is parsed from the [MC:who]/[chN:who] tag so two
-    # senders' identical commands are never collapsed.
+    # senders' identical commands are never collapsed. An UNTAGGED message is
+    # a direct RF packet (the radio already drops repeated packet ids), so a
+    # second one is a person asking again — never a dup (lehua 2026-10-17:
+    # a `wx` retry after a NOAA 500 was swallowed).
     import os as _os, re as _re, time as _time
     try:
         window = int(_os.environ.get('MESHFORGE_REPLY_DEDUP_S', '30'))
@@ -2046,7 +2049,9 @@ def _meshforge_reply_is_dup(original_text, command, channel, from_id):
     if window <= 0 or not command:
         return False
     m = _re.search(r'\[(?:MC|ch\d+):([^\]]+)\]', original_text or '')
-    origin = m.group(1).strip() if m else str(from_id)
+    if not m:
+        return False
+    origin = m.group(1).strip()
     key = (origin, ' '.join(str(command).split()).lower(), channel)
     now = _time.time()
     cache = _meshforge_reply_is_dup.__dict__.setdefault('_seen', {})
