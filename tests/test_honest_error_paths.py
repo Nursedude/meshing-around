@@ -229,3 +229,23 @@ def test_drap_200_without_xray_line_is_not_a_fetch_error(monkeypatch, propagate_
 def test_drap_http_failure_is_still_a_fetch_error(monkeypatch):
     _script_get(monkeypatch, [ScriptedResponse(ok=False, status_code=503)])
     assert space.drap_xray_conditions() == ERROR
+
+
+# ---- wiki: "no such article" is not "error fetching data" ----
+# 2026-10-16 (lehua log): `wiki meshforge` -> Wikipedia 404 -> the bot replied
+# "error fetching data". The lookup worked; there is no article.
+
+def test_wiki_404_says_no_article_not_fetch_error(monkeypatch):
+    import modules.wiki as wiki
+    monkeypatch.setattr(wiki, "use_kiwix_server", False, raising=False)
+    _script_get(monkeypatch, [ScriptedResponse(ok=False, status_code=404)])
+    out = wiki.get_wikipedia_summary("meshforge")
+    assert out != ERROR
+    assert "no wikipedia article" in out.lower() and "meshforge" in out
+
+
+def test_wiki_network_failure_is_still_fetch_error(monkeypatch):
+    import modules.wiki as wiki
+    monkeypatch.setattr(wiki, "use_kiwix_server", False, raising=False)
+    _script_get(monkeypatch, [requests.exceptions.ConnectionError("down")])
+    assert wiki.get_wikipedia_summary("meshforge") == ERROR

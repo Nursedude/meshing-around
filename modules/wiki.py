@@ -104,8 +104,10 @@ def get_wikipedia_summary(search_term, location=None, force=False, truncate=True
     try:
         response = requests.get(api_url, timeout=5, headers=headers)
         if response.status_code == 404:
+            # the lookup WORKED — there is no article (2026-11-01: was the
+            # fetch-error sentinel, so `wiki meshforge` read as a failure)
             logger.warning(f"System: No Wikipedia Results for:{search_term}")
-            return ERROR_FETCHING_DATA
+            return f"No Wikipedia article for '{search_term}'."
         response.raise_for_status()
         data = response.json()
         logger.debug(f"Wikipedia API response for '{search_term}': {len(data)} keys")
