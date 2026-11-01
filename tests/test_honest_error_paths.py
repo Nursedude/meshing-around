@@ -191,3 +191,41 @@ def test_mwx_unset_coastal_zone_names_the_config_gap():
     reply = handler(1, 1, "mwx")
     assert reply != NO_ALERTS
     assert "config" in reply.lower()
+
+
+# ---- NOAA DRAP X-ray: a fetch that SUCCEEDED is never "error fetching data" ----
+# 2026-11-01: NOAA served a 200 DRAP file with "WARNING! NO INPUT DATA
+# AVAILABLE" and no X-RAY line; the bot replied "error fetching data" (no log
+# line) — the fetch had worked, the SOURCE had no input. Say what NOAA says.
+
+_DRAP_HEAD = ("# DRAP Tabular Values\n"
+              "# Product: D-Region Absorption         /images/drap2_tab.txt\n"
+              "# Product Issued At : 2026-10-31 22:29 UTC\n#\n")
+
+
+def test_drap_xray_line_is_reported(monkeypatch):
+    body = _DRAP_HEAD + "#  X-RAY Message : Normal X-ray Background\n"
+    _script_get(monkeypatch, [ScriptedResponse(text=body)])
+    assert space.drap_xray_conditions() == "Normal X-ray Background"
+
+
+def test_drap_no_input_data_names_noaa_not_a_fetch_error(monkeypatch, propagate_logs, caplog):
+    body = (_DRAP_HEAD + "# Estimated Recovery Time : No Estimate\n#\n"
+            "# WARNING! NO INPUT DATA AVAILABLE. NO ABSORPTION ESTIMATES CALCULATED.\n")
+    _script_get(monkeypatch, [ScriptedResponse(text=body)])
+    out = space.drap_xray_conditions()
+    assert out != ERROR
+    assert "no input" in out.lower() and "2026-10-31 22:29" in out
+    assert any("NO INPUT DATA" in r.getMessage() for r in caplog.records)
+
+
+def test_drap_200_without_xray_line_is_not_a_fetch_error(monkeypatch, propagate_logs, caplog):
+    _script_get(monkeypatch, [ScriptedResponse(text=_DRAP_HEAD)])
+    out = space.drap_xray_conditions()
+    assert out != ERROR and "x-ray" in out.lower()
+    assert any("X-RAY" in r.getMessage() for r in caplog.records)
+
+
+def test_drap_http_failure_is_still_a_fetch_error(monkeypatch):
+    _script_get(monkeypatch, [ScriptedResponse(ok=False, status_code=503)])
+    assert space.drap_xray_conditions() == ERROR

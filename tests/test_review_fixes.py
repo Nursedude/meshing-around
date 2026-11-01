@@ -89,8 +89,12 @@ def test_volcano_non_ignored_alert_still_reported(monkeypatch):
 # ---- drap: 200 body without the X-RAY line raised UnboundLocalError ----
 
 def test_drap_missing_xray_line_is_error_not_crash(monkeypatch):
+    # FLIPPED 2026-11-01: still never a crash, but a 200 body without the line
+    # is no longer "error fetching data" — the fetch worked (see
+    # test_honest_error_paths.py::test_drap_200_without_xray_line_*).
     _script_get(monkeypatch, [ScriptedResponse(text="# some header\n1.0 2.0 3.0\n")])
-    assert space.drap_xray_conditions() == ERROR
+    out = space.drap_xray_conditions()
+    assert out != ERROR and "x-ray" in out.lower()
 
 
 def test_drap_network_failure_is_error_not_crash(monkeypatch):

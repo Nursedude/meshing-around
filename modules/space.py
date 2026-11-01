@@ -78,15 +78,33 @@ def solar_conditions():
 @ttl_cache()
 def drap_xray_conditions():
     # DRAP X-ray flux conditions, from NOAA direct
-    xray_flux = ERROR_FETCHING_DATA  # honest default if the X-RAY line is absent from a 200 body
+    xray_flux = ERROR_FETCHING_DATA  # only a FAILED fetch keeps this
     try:
         drap_cond = requests.get("https://services.swpc.noaa.gov/text/drap_global_frequencies.txt", headers=API_HEADERS, timeout=urlTimeoutSeconds)
         if(drap_cond.ok):
             drap_list = drap_cond.text.split('\n')
             x_filter = '#  X-RAY Message :'
+            issued = ""
+            no_input = False
+            found = False
             for line in drap_list:
                 if x_filter in line:
                     xray_flux = line.split(": ")[1]
+                    found = True
+                elif "Product Issued At" in line and ":" in line:
+                    issued = line.split(" : ", 1)[-1].strip()
+                elif "NO INPUT DATA AVAILABLE" in line:
+                    no_input = True
+            # 2026-11-01: a 200 body without the X-RAY line is NOT a fetch
+            # error — the fetch worked. Say what NOAA's file says.
+            if not found:
+                when = f" (as of {issued})" if issued else ""
+                if no_input:
+                    xray_flux = f"DRAP: NOAA has no input data{when}"
+                    logger.warning(f"DRAP: NOAA file reports NO INPUT DATA AVAILABLE{when}")
+                else:
+                    xray_flux = f"DRAP: no X-ray line in NOAA's file{when}"
+                    logger.warning(f"DRAP: 200 body has no X-RAY Message line{when}")
         else:
             logger.error(f"Error fetching DRAP X-ray flux (HTTP {drap_cond.status_code})")
     except Exception as e:
